@@ -1,13 +1,13 @@
 # LBETest.com — marketing site
 
-Marketing homepage for the **Locrativ Business English Test (LBET)** — an
-online Business English exam that scores you in ~60 minutes and issues a
-**verifiable certificate**.
+Marketing homepage for the **Locrativ Business English Test (LBE)** — an
+official online Business English exam that scores your workplace English and
+issues a **verifiable certificate**, with results in 48 hours.
 
 Built with the Next.js App Router, TypeScript, Tailwind CSS and
-shadcn/ui (Radix primitives), with full light/dark theming and an
-accessibility-first (WCAG 2.2 AA) component set. The app is authored to stay
-edge/Workers-compatible for deployment to **Cloudflare**.
+shadcn/ui (Radix primitives). The public homepage uses a premium
+**gold-and-ivory** examination identity (light-only), and the app is authored
+to stay edge/Workers-compatible for deployment to **Cloudflare**.
 
 ---
 
@@ -35,72 +35,77 @@ Requires Node.js 18.18+ (Node 20/22 recommended).
 
 A single, composable marketing homepage plus a few stub routes.
 
-### Sections (`src/components/home/`)
+### Homepage sections (`src/components/home/`)
 
 | Component | Purpose |
 | --- | --- |
-| `Header.tsx` | Sticky header, primary nav, teal "Take the test" CTA, mobile drawer |
-| `Hero.tsx` + `ExamMock.tsx` | Headline, CTAs, exam-screen mock with a floating `B2 · Professional` badge, trust strip |
-| `LogoRow.tsx` + `PlaceholderLogo.tsx` | Social-proof logo row (neutral placeholders) |
-| `Features.tsx` | "What LBET measures" — Listening, Reading, Grammar, Writing, Speaking + CEFR card |
-| `HowItWorks.tsx` | 3-step flow |
-| `SampleQuestion.tsx` | Interactive multiple-choice demo with correct/incorrect feedback (client-side) |
-| `VerifyCertificate.tsx` | Certificate ID input → `/verify` (stub route, no backend yet) |
-| `AudienceCards.tsx` | Individuals / Business / Schools cards |
-| `PricingTeaser.tsx` | Pricing preview |
-| `Faq.tsx` | shadcn Accordion |
-| `FinalCta.tsx` | Closing CTA band |
-| `Footer.tsx` | Footer nav, legal links, language-switcher placeholder |
+| `Header.tsx` | Sticky header, gold logo, nav, gold "Book a Test" + "Sign In", mobile drawer |
+| `Hero.tsx` | Editorial headline, trust facts, info band + the certificate visual and registration card |
+| `Certificate.tsx` | A4 (210:297) certificate document visual — CSS/SVG stand-in (see asset TODO) |
+| `RegistrationCard.tsx` | "Take the test / Test my team" segmented form → existing routes |
+| `HowItWorks.tsx` | 3 connected steps |
+| `ScoreSystem.tsx` | The LBE1–LBE5 score system (LBE3 = Qualified) |
+| `VerifyCertificate.tsx` | Dark section; certificate-ID form → `/verify` route |
+| `Audiences.tsx` | Individuals / Organizations / Businesses cards |
+| `Pricing.tsx` | Two plans — Test Only ($89) and Test + Training ($189, featured) |
+| `Faq.tsx` | Accessible accordion (single-open, plus/minus) |
+| `FinalCta.tsx` | Gold-and-charcoal closing banner |
+| `Footer.tsx` | Footer nav + legal (real links only; placeholders elsewhere) |
 
 ### Primitives & shared UI
 
-- `src/components/ui/` — shadcn-style `Button`, `Card`, `Input`, `Accordion`.
+- `src/components/ui/` — shadcn-style `Button` (gold/outline/dark variants),
+  `Card`, `Input`, `Accordion` (plus/minus).
 - `src/components/Section.tsx` — `Section` + `SectionHeading` layout primitives.
-- `src/components/Logo.tsx` — the **LBET logo as an inline SVG**: a rounded-square
-  seal whose checkmark doubles as an ascending bar (verified + progress).
-- `src/components/theme-provider.tsx` / `theme-toggle.tsx` — class-strategy
-  light/dark via `next-themes`.
+- `src/components/Logo.tsx` — the **Locrativ gold "L" logo** as an inline SVG
+  plus the `LOCRATIV` / `Business English Test` wordmark.
+- `src/lib/site.ts` — nav, **routes**, footer nav and **pricing plan IDs**
+  (all outbound destinations and TODOs are centralised here).
 
 ### Routes (`src/app/`)
 
 - `/` — the homepage.
-- `/verify` — certificate lookup **stub** (renders a placeholder result; no
+- `/verify` — certificate lookup **stub** (clear "not connected" state; no
   backend call yet).
 - `/for-individuals`, `/for-business`, `/for-institutions` — audience stubs.
-- `/start`, `/login` — stubs for the exam app / auth.
+- `/start`, `/login` — stubs for booking / auth.
 
 ---
 
 ## Design system
 
-Brand + semantic tokens are declared as CSS variables in
-`src/app/globals.css` (space-separated RGB channels so Tailwind opacity
-modifiers work) and exposed through `tailwind.config.ts`.
+Tokens are declared as CSS variables in `src/app/globals.css`
+(space-separated RGB channels so Tailwind opacity modifiers work) and exposed
+through `tailwind.config.ts`. **Light-only — there is no dark mode.**
 
-**Brand colors**
+**Colors**
 
 | Token | Hex | Use |
 | --- | --- | --- |
-| `primary` | `#0B2A4A` | Deep navy — headings, dark surfaces |
-| `primary-mid` | `#1E5AA8` | Mid blue — links, accents |
-| `teal` | `#12B3A6` | **Reserved** for primary CTAs and "verified" states |
-| `gold` | `#F4B740` | Highlights |
-| `success` | `#1FA971` | Positive status |
-| `warning` | `#E8A13A` | Caution status |
-| `error` | `#D5453B` | Error status |
+| `background` (ivory) | `#FBF8F1` | Warm page background |
+| `card` | `#FFFFFF` | Cards |
+| `charcoal` | `#1D1D1F` | Primary text |
+| `charcoal-dark` | `#202020` | Dark sections (verify, final CTA) |
+| `gold` | `#C68A1E` | Primary CTAs, accents, logo |
+| `muted-foreground` | `#62605C` | Body / secondary text |
+| soft gold border | `rgba(198,138,30,.25)` | Card hairlines + dividers |
 
-Neutrals use Tailwind's `slate` ramp. Status colors are chosen to stay
-distinguishable for common color-vision deficiencies (paired with icons/text,
-never color alone).
-
-**Typography** — headings in **Sora**, body in **Inter**, both loaded via
-`next/font` (self-hosted, no layout shift). Numeric UI uses tabular numerals.
-
-**Theming** — full light + dark mode with a class strategy and a header toggle.
+**Typography** — major headings in **Cormorant Garamond** (serif), body/UI in
+**Inter**, both via `next/font` (self-hosted, no layout shift). Numeric UI uses
+tabular numerals. Subtle certificate-style guilloché patterns are pure CSS
+(`.pattern-guilloche`, `.pattern-security-dark`).
 
 **Accessibility (WCAG 2.2 AA)** — semantic landmarks, a skip link, keyboard
-navigation, always-visible focus rings, `aria` labels on icon-only controls,
-and `prefers-reduced-motion` support.
+navigation, always-visible gold focus rings, `aria` labels on icon-only
+controls, accessible form validation, and `prefers-reduced-motion` support.
+
+### Assets to supply
+
+- **TODO(asset):** `src/components/Logo.tsx` renders an inline gold "L". Drop
+  the official Locrativ logo into `/public` and swap it in.
+- **TODO(asset):** `src/components/home/Certificate.tsx` is a faithful CSS/SVG
+  A4 stand-in. When the real A4 portrait certificate asset is supplied, render
+  it as an `<img>` inside the same 210:297 frame — do not distort it.
 
 ---
 
@@ -138,17 +143,18 @@ publish the Worker.
 
 ## Where the backend & exam app plug in later
 
-This repo is intentionally structured so the product can grow beyond marketing:
+This repo is intentionally structured so the product can grow beyond marketing.
+Outbound destinations and integration points are centralised in
+`src/lib/site.ts`:
 
-- **Exam app** → add `src/app/(app)/…` route group (e.g. the real `/start`
-  flow) and a candidate dashboard under `src/app/(dashboard)/…`. The current
-  `/start` and `/login` stubs mark where these attach.
-- **Backend: Supabase** → auth, exam sessions, scoring and certificate records.
-  - `VerifyCertificate` and `/verify` are already shaped for it: the certificate
-    ID currently routes to a stub result; swap the placeholder for a Supabase
-    query (e.g. a `certificates` table + row-level security) to return real
-    verification data.
-  - Add a `src/lib/supabase/` client and server helpers; keep secrets in
-    environment variables (never in the page bundle).
+- **Booking / auth** → `/start` and `/login` stubs mark where the exam app and
+  authentication attach. The hero registration form and pricing buttons hand off
+  to these existing routes (carrying the plan slug / email as a hint).
+- **Payments** → `pricingPlans` isolates the Test Only ($89) and Test + Training
+  ($189) plans; add the real product/price IDs there (see `TODO(payments)`).
+- **Certificate verification** → the homepage and `/verify` route are shaped for
+  a real lookup: wire the verification API and render the polished result state
+  (verified, candidate, LBE score, qualification, issue date, certificate ID)
+  and an accessible error state (see `TODO(backend)`). No results are fabricated.
 
-Until then, everything on the homepage is static/marketing only.
+Until those land, everything on the homepage is static/marketing only.

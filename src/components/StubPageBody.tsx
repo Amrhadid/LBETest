@@ -3,15 +3,16 @@ import { ArrowLeft, type LucideIcon } from "lucide-react";
 
 import { Section } from "@/components/Section";
 import { Button } from "@/components/ui/button";
+import { routes } from "@/lib/site";
 
-/** Simple, on-brand placeholder body for routes that aren't built out yet. */
+/** On-brand placeholder body for routes that aren't built out yet. */
 export function StubPageBody({
   icon: Icon,
   eyebrow,
   title,
   description,
-  primaryHref = "/start",
-  primaryLabel = "Take the test",
+  primaryHref = routes.book,
+  primaryLabel = "Book a Test",
 }: {
   icon: LucideIcon;
   eyebrow: string;
@@ -21,22 +22,24 @@ export function StubPageBody({
   primaryLabel?: string;
 }) {
   return (
-    <Section className="bg-hero-radial">
+    <Section className="relative overflow-hidden">
+      <div
+        aria-hidden
+        className="pattern-guilloche pointer-events-none absolute inset-0 -z-10 opacity-60 [mask-image:radial-gradient(70%_60%_at_50%_0%,black,transparent)]"
+      />
       <div className="mx-auto max-w-2xl text-center">
-        <span className="inline-flex size-14 items-center justify-center rounded-2xl bg-primary/8 text-primary-mid">
-          <Icon className="size-7" />
+        <span className="inline-flex size-14 items-center justify-center rounded-2xl border border-gold/30 bg-gold/8 text-gold">
+          <Icon className="size-7" strokeWidth={1.5} />
         </span>
-        <p className="mt-6 text-sm font-semibold uppercase tracking-[0.16em] text-teal">
-          {eyebrow}
-        </p>
-        <h1 className="mt-3 text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
+        <p className="eyebrow mt-6">{eyebrow}</p>
+        <h1 className="font-serif-display mt-3 text-4xl text-charcoal sm:text-5xl">
           {title}
         </h1>
         <p className="mt-4 text-lg leading-relaxed text-muted-foreground">
           {description}
         </p>
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          <Button asChild variant="teal" size="lg">
+          <Button asChild variant="gold" size="lg">
             <Link href={primaryHref}>{primaryLabel}</Link>
           </Button>
           <Button asChild variant="outline" size="lg">
