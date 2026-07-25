@@ -11,11 +11,15 @@ import { Card } from "@/components/ui/card";
 export const metadata: Metadata = {
   title: "Verify a certificate",
   description:
-    "Confirm that an LBET Business English certificate is authentic and see the level it certifies.",
+    "Confirm that a Locrativ Business English (LBE) certificate is authentic and see the LBE level it certifies.",
 };
 
-// NOTE: stub route. No backend call yet — this renders a placeholder result
-// so the Verify flow is navigable. Real validation plugs into Supabase later.
+// NOTE: stub route. No backend call yet — this renders a clear "not connected"
+// state so the Verify flow is navigable without fabricating a result.
+// TODO(backend): wire the certificate-verification API here and render the
+// polished result state (verified, candidate name, LBE score, qualification,
+// issue date, certificate ID) for valid IDs, and an accessible error state
+// for invalid ones.
 export default async function VerifyPage({
   searchParams,
 }: {
@@ -30,14 +34,14 @@ export default async function VerifyPage({
       <Section>
         <div className="mx-auto max-w-2xl">
           <div className="text-center">
-            <span className="inline-flex size-12 items-center justify-center rounded-2xl bg-teal/12 text-teal">
+            <span className="inline-flex size-12 items-center justify-center rounded-2xl border border-gold/30 bg-gold/8 text-gold">
               <ShieldCheck className="size-6" />
             </span>
-            <h1 className="mt-5 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+            <h1 className="font-serif-display mt-5 text-4xl text-charcoal sm:text-5xl">
               Verify a certificate
             </h1>
             <p className="mt-3 text-lg text-muted-foreground">
-              Enter a certificate ID to confirm it’s authentic.
+              Enter a certificate ID to confirm it&rsquo;s authentic.
             </p>
           </div>
 
@@ -58,33 +62,32 @@ export default async function VerifyPage({
                 id="code"
                 name="code"
                 defaultValue={query}
-                placeholder="e.g. LBET-2026-8F3A-QK2"
+                placeholder="e.g. LBE-2026-000184"
                 className="pl-10 tabular-nums"
               />
             </div>
-            <Button type="submit" variant="teal">
-              Verify
+            <Button type="submit" variant="gold">
+              Verify Certificate
             </Button>
           </form>
 
           {hasQuery && (
             <Card className="mx-auto mt-8 max-w-lg p-6">
               <div className="flex items-start gap-4">
-                <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-warning/12 text-warning">
+                <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-gold/12 text-gold">
                   <ShieldQuestion className="size-6" />
                 </span>
                 <div>
-                  <p className="font-semibold text-foreground">
+                  <p className="font-semibold text-charcoal">
                     Verification is not connected yet
                   </p>
                   <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
                     You searched for{" "}
-                    <span className="font-mono font-medium text-foreground">
+                    <span className="font-mono font-medium text-charcoal">
                       {query}
                     </span>
-                    . This is a preview of the LBET homepage — certificate
-                    lookup will be wired to the backend (Supabase) in a later
-                    milestone.
+                    . Certificate lookup will be wired to the verification
+                    backend in a later milestone.
                   </p>
                 </div>
               </div>
@@ -92,7 +95,10 @@ export default async function VerifyPage({
           )}
 
           <p className="mt-8 text-center text-sm text-muted-foreground">
-            <Link href="/" className="font-medium text-primary-mid hover:underline">
+            <Link
+              href="/"
+              className="rounded-sm font-medium text-gold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
               ← Back to home
             </Link>
           </p>

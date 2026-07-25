@@ -1,12 +1,10 @@
 import { Header } from "@/components/home/Header";
 import { Hero } from "@/components/home/Hero";
-import { LogoRow } from "@/components/home/LogoRow";
-import { Features } from "@/components/home/Features";
 import { HowItWorks } from "@/components/home/HowItWorks";
+import { ScoreSystem } from "@/components/home/ScoreSystem";
 import { VerifyCertificate } from "@/components/home/VerifyCertificate";
-import { AudienceCards } from "@/components/home/AudienceCards";
-import { SampleQuestion } from "@/components/home/SampleQuestion";
-import { PricingTeaser } from "@/components/home/PricingTeaser";
+import { Audiences } from "@/components/home/Audiences";
+import { Pricing } from "@/components/home/Pricing";
 import { Faq } from "@/components/home/Faq";
 import { FinalCta } from "@/components/home/FinalCta";
 import { Footer } from "@/components/home/Footer";
@@ -17,13 +15,11 @@ export default function HomePage() {
       <Header />
       <main id="main" className="flex-1">
         <Hero />
-        <LogoRow />
-        <Features />
         <HowItWorks />
-        <SampleQuestion />
+        <ScoreSystem />
         <VerifyCertificate />
-        <AudienceCards />
-        <PricingTeaser />
+        <Audiences />
+        <Pricing />
         <Faq />
         <FinalCta />
       </main>

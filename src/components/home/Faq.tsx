@@ -6,37 +6,43 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 
+/*
+ * TODO(content): answers marked below are neutral placeholders that could not
+ * be confirmed from existing code/content. Have them reviewed before launch.
+ * None make unsupported recognition, security or scoring claims, and none
+ * reference CEFR / A1–C2.
+ */
 const faqs = [
   {
-    q: "How long is the test and what does it cover?",
-    a: "LBET takes about 60 minutes and covers five workplace skills — Listening, Reading, Grammar & Vocabulary, Writing and Speaking. It’s adaptive, so questions adjust to your level as you go.",
+    q: "How long does the LBE test take?",
+    a: "The test is completed online in a single sitting and takes around an hour. You can take it from your own computer whenever suits you.", // TODO(content): confirm exact duration
   },
   {
-    q: "How is it scored?",
-    a: "You receive an overall score from 0–200 and a CEFR level from A1 to C2, plus a breakdown for each skill. Auto-scored sections are returned instantly; where human review applies, results are confirmed within 48 hours.",
+    q: "What does the test assess?",
+    a: "The LBE assesses the Business English you use at work across four skills, focused on real workplace situations such as meetings, emails and professional conversations.", // TODO(content): confirm the four assessed skills
   },
   {
-    q: "Is the certificate recognized by employers?",
-    a: "LBET is aligned to the CEFR, the international standard employers and institutions already use. Every certificate has a unique ID that anyone can validate at lbetest.com/verify.",
+    q: "What does LBE3 — Qualified mean?",
+    a: "LBE3 (Professional) means you can participate effectively in meetings, write professional emails and contribute confidently to workplace discussions. It is the level at which a candidate is recognised as Qualified in Business English.",
   },
   {
-    q: "Do I need a test center or a proctor?",
-    a: "No. You can take LBET from any modern browser at home or at work. For high-stakes use, organizations can enable optional online proctoring.",
+    q: "When will I receive my results?",
+    a: "Results are typically available within 48 hours of completing the test. You’ll receive your LBE level, workplace qualification and a skill breakdown.", // TODO(content): confirm results turnaround
   },
   {
-    q: "What do I need to take the test?",
-    a: "A quiet space, a stable internet connection, a microphone for the Speaking section, and around an hour of uninterrupted time. That’s it.",
+    q: "How can employers verify my certificate?",
+    a: "Every LBE certificate has a unique certificate ID. Anyone can confirm it by entering that ID in the certificate-verification section — no account is required.",
   },
   {
     q: "Can I retake the test?",
-    a: "Yes. You can retake LBET to improve your score — the Retake bundle includes a second attempt within 90 days, and your certificate always reflects your best result.",
+    a: "Yes. You can retake the LBE test to improve your result, and your certificate reflects your achieved level.", // TODO(content): confirm retake policy
   },
 ];
 
 export function Faq() {
   return (
-    <Section id="faq" muted>
-      <SectionHeading eyebrow="FAQ" title="Questions, answered" />
+    <Section id="faq">
+      <SectionHeading eyebrow="FAQ" title="Questions, answered." />
 
       <div className="mx-auto mt-12 max-w-3xl">
         <Accordion type="single" collapsible className="space-y-3">

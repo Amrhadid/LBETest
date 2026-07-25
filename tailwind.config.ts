@@ -1,15 +1,14 @@
 import type { Config } from "tailwindcss";
 
 /**
- * Brand + semantic tokens are declared as CSS variables in
- * `src/app/globals.css` (space-separated RGB channels) so that Tailwind's
- * opacity modifiers (e.g. `bg-teal/10`) work everywhere and light/dark mode
- * can swap the same token names.
+ * Premium gold-and-ivory Locrativ identity. Tokens are declared as CSS
+ * variables (space-separated RGB channels) in `src/app/globals.css` so
+ * Tailwind opacity modifiers work (e.g. `border-gold/25`). Light-only —
+ * there is no dark mode.
  */
 const rgb = (v: string) => `rgb(var(${v}) / <alpha-value>)`;
 
 const config: Config = {
-  darkMode: "class",
   content: [
     "./src/app/**/*.{ts,tsx}",
     "./src/components/**/*.{ts,tsx}",
@@ -28,38 +27,32 @@ const config: Config = {
     },
     extend: {
       colors: {
-        // Semantic (theme-aware) tokens
-        background: rgb("--background"),
-        foreground: rgb("--foreground"),
+        background: rgb("--ivory"),
+        foreground: rgb("--charcoal"),
+        ivory: rgb("--ivory"),
         card: {
           DEFAULT: rgb("--card"),
-          foreground: rgb("--card-foreground"),
+          foreground: rgb("--charcoal"),
+        },
+        charcoal: {
+          DEFAULT: rgb("--charcoal"),
+          dark: rgb("--charcoal-dark"),
+        },
+        gold: {
+          DEFAULT: rgb("--gold"),
+          soft: rgb("--gold-soft"),
         },
         muted: {
-          DEFAULT: rgb("--muted"),
-          foreground: rgb("--muted-foreground"),
+          DEFAULT: rgb("--ivory-deep"),
+          foreground: rgb("--muted"),
         },
-        border: rgb("--border"),
-        input: rgb("--input"),
-        ring: rgb("--ring"),
-
-        // Brand tokens
-        primary: {
-          DEFAULT: rgb("--primary"),
-          mid: rgb("--primary-mid"),
-          foreground: rgb("--primary-foreground"),
-        },
-        teal: {
-          DEFAULT: rgb("--teal"),
-          foreground: rgb("--teal-foreground"),
-        },
-        gold: rgb("--gold"),
-        success: rgb("--success"),
-        warning: rgb("--warning"),
-        error: rgb("--error"),
+        // Soft gold hairline used for cards + dividers.
+        border: "rgb(var(--gold) / 0.22)",
+        input: "rgb(var(--gold) / 0.30)",
+        ring: rgb("--gold"),
       },
       fontFamily: {
-        heading: ["var(--font-heading)", "system-ui", "sans-serif"],
+        serif: ["var(--font-serif)", "Cormorant Garamond", "Georgia", "serif"],
         sans: ["var(--font-sans)", "system-ui", "sans-serif"],
       },
       borderRadius: {
@@ -68,36 +61,30 @@ const config: Config = {
         sm: "calc(var(--radius) - 8px)",
       },
       boxShadow: {
-        soft: "0 1px 2px 0 rgb(11 42 74 / 0.04), 0 8px 24px -12px rgb(11 42 74 / 0.18)",
-        lift: "0 12px 40px -12px rgb(11 42 74 / 0.28)",
-        "teal-glow": "0 10px 30px -10px rgb(18 179 166 / 0.45)",
+        card: "0 1px 2px rgb(29 29 31 / 0.04), 0 10px 30px -18px rgb(29 29 31 / 0.20)",
+        lift: "0 24px 60px -28px rgb(29 29 31 / 0.30)",
+        paper:
+          "0 2px 4px rgb(29 29 31 / 0.06), 0 30px 60px -24px rgb(29 29 31 / 0.28)",
+        gold: "0 12px 28px -14px rgb(198 138 30 / 0.55)",
       },
       keyframes: {
         "accordion-down": {
-          from: { height: "0" },
-          to: { height: "var(--radix-accordion-content-height)" },
+          from: { height: "0", opacity: "0" },
+          to: { height: "var(--radix-accordion-content-height)", opacity: "1" },
         },
         "accordion-up": {
-          from: { height: "var(--radix-accordion-content-height)" },
-          to: { height: "0" },
+          from: { height: "var(--radix-accordion-content-height)", opacity: "1" },
+          to: { height: "0", opacity: "0" },
         },
         "fade-up": {
-          "0%": { opacity: "0", transform: "translateY(12px)" },
+          "0%": { opacity: "0", transform: "translateY(14px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
-        },
-        float: {
-          "0%, 100%": { transform: "translateY(0)" },
-          "50%": { transform: "translateY(-8px)" },
-        },
-        shimmer: {
-          "100%": { transform: "translateX(100%)" },
         },
       },
       animation: {
-        "accordion-down": "accordion-down 0.2s ease-out",
-        "accordion-up": "accordion-up 0.2s ease-out",
-        "fade-up": "fade-up 0.5s ease-out both",
-        float: "float 6s ease-in-out infinite",
+        "accordion-down": "accordion-down 0.24s ease-out",
+        "accordion-up": "accordion-up 0.24s ease-out",
+        "fade-up": "fade-up 0.6s ease-out both",
       },
     },
   },

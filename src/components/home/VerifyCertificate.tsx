@@ -2,71 +2,82 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { ShieldCheck, Search } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 
-import { Section } from "@/components/Section";
-import { Input } from "@/components/ui/input";
+import { routes } from "@/lib/site";
 import { Button } from "@/components/ui/button";
 
 export function VerifyCertificate() {
   const router = useRouter();
   const [code, setCode] = React.useState("");
+  const inputId = React.useId();
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = code.trim();
-    // Wired to the stub /verify route for now — no backend call yet.
-    router.push(trimmed ? `/verify?code=${encodeURIComponent(trimmed)}` : "/verify");
+    // Connect to the existing certificate-verification route. The real lookup
+    // + result state live on /verify.
+    // TODO(backend): when the verification API is available, return the
+    // polished result state (verified, candidate name, LBE score,
+    // qualification status, issue date, certificate ID) — no fabricated data.
+    router.push(
+      trimmed ? `${routes.verify}?code=${encodeURIComponent(trimmed)}` : routes.verify,
+    );
   }
 
   return (
-    <Section id="verify">
-      <div className="relative overflow-hidden rounded-3xl border border-teal/25 bg-gradient-to-br from-[rgb(var(--surface))] to-teal/5 p-8 sm:p-12">
-        <div className="mx-auto max-w-2xl text-center">
-          <span className="inline-flex size-12 items-center justify-center rounded-2xl bg-teal/12 text-teal">
-            <ShieldCheck className="size-6" />
-          </span>
-          <h2 className="mt-5 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            Verify a certificate
-          </h2>
-          <p className="mt-3 text-lg text-muted-foreground">
-            Hiring or checking a candidate? Enter a certificate ID to confirm
-            it’s authentic and see the level it certifies.
-          </p>
+    <section id="verify" className="relative overflow-hidden bg-charcoal-dark">
+      {/* Restrained gold security-line decoration */}
+      <div
+        aria-hidden
+        className="pattern-security-dark pointer-events-none absolute inset-0 opacity-70"
+      />
+      <div className="container relative mx-auto py-20 sm:py-24 lg:py-28">
+        <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
+          {/* Left copy */}
+          <div>
+            <p className="eyebrow text-gold-soft">Certificate verification</p>
+            <h2 className="font-serif-display mt-4 text-4xl leading-[1.08] text-white sm:text-5xl">
+              Verify an LBE certificate in seconds.
+            </h2>
+            <p className="mt-5 max-w-md text-lg leading-relaxed text-white/70">
+              Enter the certificate ID to confirm the holder&rsquo;s identity, LBE
+              score and qualification status.
+            </p>
+          </div>
 
-          <form
-            onSubmit={onSubmit}
-            className="mx-auto mt-8 flex max-w-lg flex-col gap-3 sm:flex-row"
-          >
-            <div className="relative flex-1">
-              <Search
-                aria-hidden
-                className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-              />
-              <label htmlFor="cert-id" className="sr-only">
+          {/* Right panel */}
+          <div className="rounded-2xl border border-gold/25 bg-card p-6 shadow-lift sm:p-8">
+            <span className="flex size-12 items-center justify-center rounded-xl bg-gold/10 text-gold">
+              <ShieldCheck className="size-6" />
+            </span>
+            <form onSubmit={onSubmit} className="mt-5">
+              <label
+                htmlFor={inputId}
+                className="mb-1.5 block text-sm font-medium text-charcoal"
+              >
                 Certificate ID
               </label>
-              <Input
-                id="cert-id"
+              <input
+                id={inputId}
                 name="code"
-                inputMode="text"
+                type="text"
                 autoComplete="off"
-                placeholder="e.g. LBET-2026-8F3A-QK2"
+                placeholder="e.g. LBE-2026-000184"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
-                className="pl-10 tabular-nums"
+                className="flex h-12 w-full rounded-lg border border-gold/30 bg-card px-4 text-sm tabular-nums text-charcoal shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:border-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-card"
               />
-            </div>
-            <Button type="submit" variant="teal" size="md">
-              Verify
-            </Button>
-          </form>
-
-          <p className="mt-4 text-sm text-muted-foreground">
-            Every LBET certificate carries a unique, tamper-evident ID.
-          </p>
+              <Button type="submit" variant="gold" size="lg" className="mt-4 w-full">
+                Verify Certificate
+              </Button>
+            </form>
+            <p className="mt-4 text-center text-sm text-muted-foreground">
+              Secure and publicly accessible.
+            </p>
+          </div>
         </div>
       </div>
-    </Section>
+    </section>
   );
 }
