@@ -47,7 +47,10 @@ export const metadata: Metadata = {
     description: siteConfig.description,
   },
   icons: {
-    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    // Use the supplied Locrativ logo everywhere (browser tab, bookmarks, iOS).
+    icon: [{ url: "/Logo.png", type: "image/png" }],
+    shortcut: [{ url: "/Logo.png", type: "image/png" }],
+    apple: [{ url: "/Logo.png", type: "image/png" }],
   },
 };
 
