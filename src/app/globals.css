@@ -1,0 +1,133 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Brand + semantic design tokens.
+ * Values are space-separated RGB channels so Tailwind opacity modifiers work
+ * (e.g. `bg-teal/10`). Brand hexes:
+ *   primary       #0B2A4A   primary-mid  #1E5AA8   teal    #12B3A6
+ *   gold          #F4B740   success      #1FA971   warning #E8A13A
+ *   error         #D5453B
+ * Teal is reserved for primary CTAs and "verified" states only.
+ */
+@layer base {
+  :root {
+    /* Brand */
+    --primary: 11 42 74;
+    --primary-mid: 30 90 168;
+    --primary-foreground: 255 255 255;
+    --teal: 18 179 166;
+    --teal-foreground: 255 255 255;
+    --gold: 244 183 64;
+    --success: 31 169 113;
+    --warning: 232 161 58;
+    --error: 213 69 59;
+
+    /* Semantic — light */
+    --background: 255 255 255;
+    --foreground: 15 27 45;
+    --card: 255 255 255;
+    --card-foreground: 15 27 45;
+    --muted: 241 245 249;
+    --muted-foreground: 90 105 128;
+    --border: 226 232 240;
+    --input: 226 232 240;
+    --ring: 18 179 166;
+
+    /* Decorative surface used for alternating section backgrounds */
+    --surface: 248 250 252;
+
+    --radius: 0.85rem;
+  }
+
+  .dark {
+    /* Semantic — dark */
+    --background: 6 20 34;
+    --foreground: 232 238 246;
+    --card: 13 33 53;
+    --card-foreground: 232 238 246;
+    --muted: 18 38 59;
+    --muted-foreground: 148 163 184;
+    --border: 29 53 80;
+    --input: 34 60 88;
+    --ring: 18 179 166;
+
+    --surface: 9 26 43;
+
+    /* Slightly brighten brand blues for contrast on dark */
+    --primary-mid: 74 143 224;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Tabular numerals for numeric UI (scores, prices, timers). */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  h1, h2, h3, h4, h5 {
+    @apply font-heading;
+    text-wrap: balance;
+  }
+
+  /* WCAG 2.2 AA: always-visible, high-contrast focus ring. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  ::selection {
+    background-color: rgb(var(--teal) / 0.24);
+  }
+}
+
+@layer utilities {
+  .container-page {
+    @apply container mx-auto;
+  }
+
+  /* Subtle top-to-bottom brand wash used behind the hero. */
+  .bg-hero-radial {
+    background-image:
+      radial-gradient(60% 60% at 15% 0%, rgb(var(--teal) / 0.10), transparent 60%),
+      radial-gradient(70% 70% at 100% 10%, rgb(var(--primary-mid) / 0.14), transparent 55%);
+  }
+
+  .text-gradient-brand {
+    background-image: linear-gradient(
+      100deg,
+      rgb(var(--primary-mid)),
+      rgb(var(--teal))
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Respect users who prefer reduced motion. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
