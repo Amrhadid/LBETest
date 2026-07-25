@@ -11,8 +11,8 @@ export function Footer() {
           <div className="max-w-sm">
             <Logo />
             <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-              {siteConfig.fullName} — an official online exam with instant
-              scoring and verifiable certificates.
+              {siteConfig.fullName} — an official online exam with scoring in
+              48 hours and verifiable certificates.
             </p>
           </div>
 
