@@ -104,20 +104,35 @@ and `prefers-reduced-motion` support.
 
 ---
 
-## Deploying to Cloudflare
+## Deploying to Cloudflare (Workers)
 
-The page avoids Node-only APIs so it can run on Cloudflare Workers/Pages. The
-recommended adapter is [`@opennextjs/cloudflare`](https://opennext.js.org/cloudflare):
+This app is configured for **Cloudflare Workers** via the OpenNext adapter
+([`@opennextjs/cloudflare`](https://opennext.js.org/cloudflare)):
+
+- `open-next.config.ts` — adapter config.
+- `wrangler.jsonc` — Worker config: the `nodejs_compat` compatibility flag, a
+  recent `compatibility_date`, `main` → `.open-next/worker.js` (the OpenNext
+  worker output), and the static-assets binding (`ASSETS` → `.open-next/assets`).
+- `next.config.mjs` calls `initOpenNextCloudflareForDev()` so
+  `getCloudflareContext()` works during `next dev`.
+
+Build the Worker locally, preview it on the Workers runtime, or deploy manually:
 
 ```bash
-npm i -D @opennextjs/cloudflare wrangler
-# then build & preview with the adapter, e.g.
-# npx opennextjs-cloudflare build && npx wrangler dev
+npx opennextjs-cloudflare build   # runs `next build`, then bundles the Worker
+npm run preview                   # build + local workerd preview (wrangler)
+npm run deploy                    # build + deploy via wrangler
 ```
 
-Add a `wrangler` config and the `opennextjs-cloudflare` build step when the
-deployment target is wired up. (Kept out of the base install so `npm run dev`
-stays lightweight.)
+### Cloudflare Workers Builds (Git-connected)
+
+In the Workers Builds project settings, use:
+
+- **Build command:** `npx opennextjs-cloudflare build`
+- **Deploy command:** `npx opennextjs-cloudflare deploy`
+
+Cloudflare runs the build command on each push and then the deploy command to
+publish the Worker.
 
 ---
 
