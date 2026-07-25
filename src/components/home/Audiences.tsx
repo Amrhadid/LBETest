@@ -52,9 +52,9 @@ export function Audiences() {
         {audiences.map(({ icon: Icon, title, blurb, cta, href }) => (
           <div
             key={title}
-            className="group flex flex-col rounded-2xl border border-gold/25 bg-card p-7 shadow-card transition-all duration-300 hover:-translate-y-1 hover:border-gold/45 hover:shadow-lift"
+            className="corner-frame paper-panel group relative flex flex-col border border-gold/25 bg-card p-8 transition-all duration-300 hover:-translate-y-1.5 hover:border-gold/50 hover:shadow-lift"
           >
-            <span className="flex size-12 items-center justify-center rounded-xl border border-gold/30 bg-gold/8 text-gold">
+            <span className="flex size-14 items-center justify-center rounded-full border border-gold/35 bg-card text-gold shadow-[0_0_0_6px_rgb(198_138_30/.06)]">
               <Icon className="size-6" strokeWidth={1.5} />
             </span>
             <h3 className="mt-5 text-xl font-semibold text-charcoal">{title}</h3>

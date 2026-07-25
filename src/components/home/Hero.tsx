@@ -9,22 +9,24 @@ const infoBand = ["4 skills assessed", "Workplace language", "Unique certificate
 
 export function Hero() {
   return (
-    <section className="relative overflow-hidden">
+    <section className="relative overflow-hidden border-b border-gold/25">
       {/* Soft security-pattern wash behind the hero */}
       <div
         aria-hidden
         className="pattern-guilloche pointer-events-none absolute inset-0 -z-10 opacity-60 [mask-image:radial-gradient(80%_60%_at_50%_0%,black,transparent)]"
       />
+      <div aria-hidden className="absolute -left-40 top-16 size-[30rem] rounded-full border border-gold/10" />
+      <div aria-hidden className="absolute -left-28 top-28 size-[22rem] rounded-full border border-gold/10" />
 
       <div className="container mx-auto py-14 sm:py-16 lg:py-24">
-        <div className="flex flex-col gap-10 lg:grid lg:grid-cols-[1.05fr_0.95fr] lg:gap-x-14 lg:gap-y-6 lg:[grid-template-areas:'text_form''cert_form''band_band']">
+        <div className="corner-frame relative flex flex-col gap-10 border-x border-gold/15 px-4 py-6 sm:px-8 lg:grid lg:grid-cols-[1.08fr_0.92fr] lg:gap-x-16 lg:gap-y-8 lg:px-12 lg:py-10 lg:[grid-template-areas:'text_form''cert_form''band_band']">
           {/* A — editorial text */}
           <div className="animate-fade-up lg:[grid-area:text] lg:self-center">
             <p className="eyebrow">Business English. Officially proven.</p>
-            <h1 className="font-serif-display mt-4 text-[2.6rem] leading-[1.04] text-charcoal sm:text-6xl">
+            <h1 className="font-serif-display mt-5 text-[3rem] leading-[0.96] text-charcoal sm:text-7xl lg:text-[5.1rem]">
               The world&rsquo;s first Business English test
             </h1>
-            <p className="mt-5 text-xl text-muted-foreground">
+            <p className="mt-7 max-w-md border-l border-gold/40 pl-5 text-xl text-muted-foreground first-letter:font-serif first-letter:text-4xl first-letter:text-gold">
               LBE3 means you&rsquo;re{" "}
               <span className="font-serif-display italic text-charcoal">
                 &ldquo;Qualified&rdquo;
@@ -38,13 +40,13 @@ export function Hero() {
               <ArrowRight className="size-4" />
             </Link>
 
-            <ul className="mt-8 flex flex-wrap gap-x-6 gap-y-3">
+            <ul className="mt-9 flex flex-wrap gap-x-6 gap-y-3 border-t border-gold/20 pt-5">
               {trustFacts.map((fact) => (
                 <li
                   key={fact}
                   className="flex items-center gap-2 text-sm font-medium text-charcoal"
                 >
-                  <span className="flex size-5 items-center justify-center rounded-full bg-gold/12 text-gold">
+                  <span className="flex size-6 items-center justify-center rounded-full border border-gold/35 bg-card text-gold shadow-sm">
                     <Check className="size-3.5" />
                   </span>
                   {fact}
@@ -65,11 +67,11 @@ export function Hero() {
 
           {/* D — compact information band */}
           <div className="lg:[grid-area:band]">
-            <ul className="flex flex-col divide-y divide-gold/20 overflow-hidden rounded-xl border border-gold/25 bg-card shadow-card sm:flex-row sm:divide-x sm:divide-y-0">
+            <ul className="engraved-band paper-panel flex flex-col divide-y divide-gold/20 overflow-hidden bg-card/90 sm:flex-row sm:divide-x sm:divide-y-0">
               {infoBand.map((item) => (
                 <li
                   key={item}
-                  className="flex-1 px-5 py-3.5 text-center text-sm font-medium text-charcoal"
+                  className="flex-1 px-5 py-4 text-center text-xs font-semibold uppercase tracking-[0.12em] text-charcoal"
                 >
                   {item}
                 </li>

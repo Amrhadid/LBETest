@@ -51,16 +51,17 @@ export function ScoreSystem() {
         description="The Locrativ Business English Exam evaluates two core competencies: understanding workplace English and expressing yourself effectively in professional situations."
       />
 
-      <ol className="mx-auto mt-14 max-w-3xl space-y-4">
-        {levels.map((level) => (
+      <ol className="relative mx-auto mt-14 max-w-4xl space-y-3 before:absolute before:bottom-8 before:left-[2.05rem] before:top-8 before:w-px before:bg-gold/25 sm:before:left-[5.5rem]">
+        {levels.map((level, index) => (
           <li
             key={level.code}
             className={cn(
-              "flex flex-col gap-3 rounded-2xl border bg-card p-6 shadow-card sm:flex-row sm:items-center sm:gap-6",
-              level.qualified ? "border-gold/50 ring-1 ring-gold/25" : "border-gold/20",
+              "paper-panel group relative flex flex-col gap-3 border bg-card/95 p-6 pl-20 transition-all duration-300 hover:translate-x-1 hover:border-gold/40 sm:flex-row sm:items-center sm:gap-8 sm:pl-6",
+              level.qualified ? "border-gold/60 ring-1 ring-gold/25" : "border-gold/20",
             )}
           >
-            <div className="flex shrink-0 items-center gap-3 sm:w-44 sm:flex-col sm:items-start sm:gap-1">
+            <span className={cn("absolute left-5 top-1/2 z-10 flex size-7 -translate-y-1/2 items-center justify-center rounded-full border bg-card text-xs font-semibold tabular-nums sm:left-[4.7rem]", level.qualified ? "gold-foil border-gold text-white shadow-gold" : "border-gold/40 text-gold")}>{index + 1}</span>
+            <div className="flex shrink-0 items-center gap-3 sm:w-48 sm:flex-col sm:items-start sm:gap-1 sm:pl-24">
               <span className="font-serif-display text-2xl text-gold">
                 {level.code}
               </span>
@@ -68,7 +69,7 @@ export function ScoreSystem() {
                 {level.name}
               </span>
               {level.qualified && (
-                <span className="inline-flex items-center rounded-full border border-gold/40 bg-gold/10 px-2.5 py-0.5 text-[0.65rem] font-bold uppercase tracking-[0.12em] text-gold">
+                <span className="gold-foil inline-flex items-center rounded-full px-3 py-1 text-[0.62rem] font-bold uppercase tracking-[0.14em] text-white shadow-gold">
                   Qualified
                 </span>
               )}

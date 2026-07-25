@@ -42,7 +42,9 @@ export function RegistrationCard() {
   ];
 
   return (
-    <div className="rounded-2xl border border-gold/25 bg-card p-6 shadow-lift sm:p-8">
+    <div className="corner-frame paper-panel relative border border-gold/30 bg-card p-6 sm:p-8">
+      <div aria-hidden className="absolute inset-2 border border-gold/10" />
+      <div className="relative">
       <p className="eyebrow">Start here</p>
       <h2 className="font-serif-display mt-2 text-2xl text-charcoal">
         What would you like to do?
@@ -128,6 +130,7 @@ export function RegistrationCard() {
           <Lock className="size-3.5 text-gold" />
           Secure registration
         </span>
+      </div>
       </div>
     </div>
   );

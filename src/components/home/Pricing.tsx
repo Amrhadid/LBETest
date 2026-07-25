@@ -53,18 +53,18 @@ export function Pricing() {
           <div
             key={plan.title}
             className={cn(
-              "relative flex flex-col rounded-2xl bg-card p-8 shadow-card",
+              "paper-panel relative flex flex-col overflow-hidden bg-card p-8 transition-all duration-300 hover:-translate-y-1 hover:shadow-lift",
               plan.featured
-                ? "border-2 border-gold shadow-lift"
+                ? "border border-gold shadow-lift ring-4 ring-gold/5"
                 : "border border-gold/25",
             )}
           >
             {plan.badge && (
-              <span className="absolute -top-3 left-8 rounded-full bg-gold px-3 py-1 text-[0.65rem] font-bold uppercase tracking-[0.14em] text-white shadow-gold">
+              <span className="gold-foil absolute right-[-3.4rem] top-7 w-48 rotate-45 py-2 text-center text-[0.62rem] font-bold uppercase tracking-[0.16em] text-white shadow-gold">
                 {plan.badge}
               </span>
             )}
-            <h3 className="text-lg font-semibold text-charcoal">{plan.title}</h3>
+            <h3 className="font-serif-display text-2xl text-charcoal">{plan.title}</h3>
             <div className="mt-4 flex items-baseline gap-2">
               <span className="font-serif-display text-5xl text-charcoal tabular-nums">
                 {plan.price}

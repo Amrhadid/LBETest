@@ -26,12 +26,13 @@ export function VerifyCertificate() {
   }
 
   return (
-    <section id="verify" className="relative overflow-hidden bg-charcoal-dark">
+    <section id="verify" className="relative overflow-hidden border-y border-gold/35 bg-charcoal-dark">
       {/* Restrained gold security-line decoration */}
       <div
         aria-hidden
         className="pattern-security-dark pointer-events-none absolute inset-0 opacity-70"
       />
+      <div aria-hidden className="absolute left-1/2 top-1/2 size-[34rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-gold/10 shadow-[0_0_0_40px_rgb(198_138_30/.025),0_0_0_80px_rgb(198_138_30/.02)]" />
       <div className="container relative mx-auto py-20 sm:py-24 lg:py-28">
         <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
           {/* Left copy */}
@@ -47,8 +48,8 @@ export function VerifyCertificate() {
           </div>
 
           {/* Right panel */}
-          <div className="rounded-2xl border border-gold/25 bg-card p-6 shadow-lift sm:p-8">
-            <span className="flex size-12 items-center justify-center rounded-xl bg-gold/10 text-gold">
+          <div className="corner-frame paper-panel relative border border-gold/35 bg-card p-7 shadow-lift sm:p-9">
+            <span className="gold-foil flex size-14 items-center justify-center rounded-full text-white shadow-gold">
               <ShieldCheck className="size-6" />
             </span>
             <form onSubmit={onSubmit} className="mt-5">

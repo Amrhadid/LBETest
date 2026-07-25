@@ -32,7 +32,7 @@ export function Header() {
       className={cn(
         "sticky top-0 z-50 w-full border-b transition-colors duration-300",
         scrolled
-          ? "border-gold/20 bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70"
+          ? "border-gold/30 bg-background/90 shadow-[0_8px_30px_-22px_rgb(29_29_31/.4)] backdrop-blur supports-[backdrop-filter]:bg-background/75"
           : "border-transparent bg-background/0",
       )}
     >
@@ -52,7 +52,7 @@ export function Header() {
               <li key={item.label}>
                 <Link
                   href={item.href}
-                  className="rounded-md px-3 py-2 text-sm font-medium text-charcoal/80 transition-colors hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                  className="group relative rounded-md px-3 py-2 text-sm font-medium text-charcoal/80 transition-colors hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-background after:absolute after:inset-x-3 after:bottom-0 after:h-px after:origin-left after:scale-x-0 after:bg-gold after:transition-transform hover:after:scale-x-100"
                 >
                   {item.label}
                 </Link>

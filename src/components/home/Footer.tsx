@@ -5,14 +5,15 @@ import { footerNav, siteConfig } from "@/lib/site";
 
 export function Footer() {
   return (
-    <footer className="border-t border-gold/25 bg-card">
+    <footer className="relative border-t border-gold/35 bg-card">
+      <div aria-hidden className="engraved-band pattern-guilloche h-3 opacity-70" />
       <div className="container mx-auto py-14">
         <div className="grid gap-10 lg:grid-cols-[1.5fr_2.5fr]">
           <div className="max-w-sm">
             <Logo />
             <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-              {siteConfig.fullName} — an official online exam with instant
-              scoring and verifiable certificates.
+              {siteConfig.fullName} — an official online exam with results in
+              48 hours and verifiable certificates.
             </p>
           </div>
 
