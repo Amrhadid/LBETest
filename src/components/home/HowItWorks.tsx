@@ -43,13 +43,13 @@ export function HowItWorks() {
         {steps.map((step) => (
           <li
             key={step.n}
-            className="relative flex flex-col items-start rounded-2xl border border-gold/25 bg-card p-7 shadow-card"
+            className="paper-panel group relative flex flex-col items-start border border-gold/25 bg-card p-8 transition-all duration-300 hover:-translate-y-1 hover:border-gold/50 hover:shadow-lift"
           >
             <div className="flex w-full items-center justify-between">
-              <span className="flex size-14 items-center justify-center rounded-2xl border border-gold/30 bg-gold/8 text-gold">
+              <span className="flex size-14 items-center justify-center rounded-full border border-gold/40 bg-card text-gold shadow-[0_0_0_5px_rgb(198_138_30/.06)] transition-transform duration-300 group-hover:scale-105">
                 <step.icon className="size-6" strokeWidth={1.5} />
               </span>
-              <span className="font-serif-display text-3xl text-gold/40 tabular-nums">
+              <span className="font-serif-display text-5xl italic text-gold/25 tabular-nums">
                 {step.n}
               </span>
             </div>

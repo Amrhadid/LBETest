@@ -21,13 +21,14 @@ export function Section({
   return (
     <Tag
       className={cn(
-        "py-20 sm:py-24 lg:py-28",
+        "relative overflow-hidden border-t border-gold/15 py-20 sm:py-24 lg:py-28",
         surface === "white" && "bg-card",
         className,
       )}
       {...props}
     >
-      <div className={cn("container mx-auto", containerClassName)}>{children}</div>
+      <div aria-hidden className="pattern-guilloche pointer-events-none absolute inset-0 opacity-25 [mask-image:linear-gradient(to_bottom,black,transparent_28%,transparent_72%,black)]" />
+      <div className={cn("container relative mx-auto", containerClassName)}>{children}</div>
     </Tag>
   );
 }
@@ -57,13 +58,13 @@ export function SectionHeading({
       )}
     >
       {eyebrow && (
-        <p className={cn("eyebrow", tone === "dark" && "text-gold-soft")}>
-          {eyebrow}
-        </p>
+        <div className="mx-auto max-w-xs ornament-rule">
+          <p className={cn("eyebrow shrink-0", tone === "dark" && "text-gold-soft")}>{eyebrow}</p>
+        </div>
       )}
       <h2
         className={cn(
-          "font-serif-display mt-4 text-4xl leading-[1.08] sm:text-5xl",
+          "font-serif-display mt-5 text-4xl leading-[1.02] sm:text-5xl lg:text-[3.5rem]",
           tone === "dark" ? "text-white" : "text-charcoal",
         )}
       >

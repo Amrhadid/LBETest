@@ -12,7 +12,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         // Solid gold — primary CTA.
-        gold: "bg-gold text-white shadow-gold hover:brightness-[1.06] hover:-translate-y-0.5",
+        gold: "gold-foil border border-gold/40 text-white shadow-gold hover:brightness-[1.06] hover:-translate-y-0.5",
         // Gold hairline outline — secondary gold action.
         outline:
           "border border-gold/45 bg-transparent text-charcoal hover:bg-gold/8",

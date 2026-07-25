@@ -7,12 +7,14 @@ export function FinalCta() {
   return (
     <section className="py-16 sm:py-20 lg:py-24">
       <div className="container mx-auto">
-        <div className="relative overflow-hidden rounded-3xl border border-gold/30 bg-charcoal-dark px-6 py-16 text-center sm:px-12 sm:py-20">
+        <div className="corner-frame relative overflow-hidden border border-gold/45 bg-charcoal-dark px-6 py-16 text-center shadow-[0_30px_80px_-35px_rgb(29_29_31/.65)] sm:px-12 sm:py-20">
           {/* Subtle certificate-security pattern + gold wash */}
           <div
             aria-hidden
             className="pattern-security-dark pointer-events-none absolute inset-0 opacity-80"
           />
+          <div aria-hidden className="absolute inset-3 border border-gold/15" />
+          <div aria-hidden className="ornament-rule absolute left-1/2 top-10 w-48 -translate-x-1/2 text-gold"><span className="size-2 rotate-45 border border-gold/70" /></div>
           <div
             aria-hidden
             className="pointer-events-none absolute inset-x-0 -top-24 h-48 opacity-60"
@@ -22,7 +24,7 @@ export function FinalCta() {
             }}
           />
           <div className="relative mx-auto max-w-2xl">
-            <h2 className="font-serif-display text-4xl leading-[1.08] text-white sm:text-5xl">
+            <h2 className="font-serif-display text-4xl leading-[1.02] text-white sm:text-6xl">
               Ready to prove your Business English?
             </h2>
             <p className="mt-5 text-lg text-white/75">

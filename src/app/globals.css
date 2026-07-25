@@ -39,6 +39,10 @@
 
   body {
     @apply bg-background text-foreground antialiased;
+    background-image:
+      radial-gradient(circle at 20% 15%, rgb(var(--gold) / 0.035) 0 1px, transparent 1.5px),
+      radial-gradient(circle at 80% 70%, rgb(var(--charcoal) / 0.022) 0 0.7px, transparent 1.2px);
+    background-size: 31px 31px, 23px 23px;
     font-feature-settings: "cv02", "cv03", "cv11";
     text-rendering: optimizeLegibility;
   }
@@ -70,7 +74,7 @@
 
   /* Small uppercase gold eyebrow label. */
   .eyebrow {
-    @apply text-xs font-semibold uppercase tracking-[0.2em] text-gold;
+    @apply text-[0.68rem] font-semibold uppercase tracking-[0.28em] text-gold;
   }
 
   /* Fine gold divider. */
@@ -82,6 +86,44 @@
       rgb(var(--gold) / 0.4),
       transparent
     );
+  }
+
+  .ornament-rule {
+    @apply flex items-center gap-3 text-gold;
+  }
+  .ornament-rule::before,
+  .ornament-rule::after {
+    content: "";
+    @apply h-px flex-1;
+    background: linear-gradient(to right, transparent, rgb(var(--gold) / .55));
+    box-shadow: 0 1px rgb(255 255 255 / .75);
+  }
+  .ornament-rule::after { transform: scaleX(-1); }
+
+  .paper-panel {
+    box-shadow:
+      0 1px 0 rgb(255 255 255 / .9) inset,
+      0 0 0 1px rgb(var(--gold) / .08),
+      0 18px 45px -28px rgb(var(--charcoal) / .35),
+      0 4px 12px -8px rgb(var(--charcoal) / .16);
+  }
+
+  .gold-foil {
+    background-image: linear-gradient(110deg, #a86d11 0%, #dba844 34%, #f2d281 52%, #c68a1e 70%, #9d650e 100%);
+  }
+
+  .corner-frame::before,
+  .corner-frame::after {
+    content: "";
+    @apply pointer-events-none absolute z-10 h-12 w-12;
+  }
+  .corner-frame::before { @apply left-3 top-3 border-l border-t border-gold/60; }
+  .corner-frame::after { @apply bottom-3 right-3 border-b border-r border-gold/60; }
+
+  .engraved-band {
+    border-top: 1px solid rgb(var(--gold) / .32);
+    border-bottom: 1px solid rgb(var(--gold) / .18);
+    box-shadow: 0 1px rgb(255 255 255 / .8) inset;
   }
 
   /*
