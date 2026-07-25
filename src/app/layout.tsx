@@ -59,8 +59,19 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${serif.variable} ${inter.variable}`}>
+    <html
+      lang="en"
+      className={`${serif.variable} ${inter.variable}`}
+      suppressHydrationWarning
+    >
       <body className="min-h-dvh bg-background font-sans text-foreground">
+        {/* Gate scroll-reveal hidden states on JS so content is never hidden
+            without it (crawlers, no-JS). Runs before first paint. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: "document.documentElement.classList.add('has-js')",
+          }}
+        />
         <a
           href="#main"
           className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-gold focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white"

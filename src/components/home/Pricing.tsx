@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Check } from "lucide-react";
 
 import { Section, SectionHeading } from "@/components/Section";
+import { Reveal } from "@/components/Reveal";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { pricingPlans } from "@/lib/site";
@@ -49,9 +50,10 @@ export function Pricing() {
       />
 
       <div className="mx-auto mt-14 grid max-w-4xl gap-6 md:grid-cols-2">
-        {plans.map((plan) => (
-          <div
+        {plans.map((plan, i) => (
+          <Reveal
             key={plan.title}
+            delay={i * 130}
             className={cn(
               "paper-panel relative flex flex-col overflow-hidden bg-card p-8 transition-all duration-300 hover:-translate-y-1 hover:shadow-lift",
               plan.featured
@@ -91,7 +93,7 @@ export function Pricing() {
             >
               <Link href={plan.href}>{plan.cta}</Link>
             </Button>
-          </div>
+          </Reveal>
         ))}
       </div>
     </Section>

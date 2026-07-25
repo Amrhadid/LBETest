@@ -3,6 +3,7 @@ import { ArrowRight, User, Building, Briefcase } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import { Section, SectionHeading } from "@/components/Section";
+import { Reveal } from "@/components/Reveal";
 import { routes } from "@/lib/site";
 
 type Audience = {
@@ -49,9 +50,10 @@ export function Audiences() {
       />
 
       <div className="mt-14 grid gap-5 md:grid-cols-3">
-        {audiences.map(({ icon: Icon, title, blurb, cta, href }) => (
-          <div
+        {audiences.map(({ icon: Icon, title, blurb, cta, href }, i) => (
+          <Reveal
             key={title}
+            delay={i * 110}
             className="corner-frame paper-panel group relative flex flex-col border border-gold/25 bg-card p-8 transition-all duration-300 hover:-translate-y-1.5 hover:border-gold/50 hover:shadow-lift"
           >
             <span className="flex size-14 items-center justify-center rounded-full border border-gold/35 bg-card text-gold shadow-[0_0_0_6px_rgb(198_138_30/.06)]">
@@ -68,7 +70,7 @@ export function Audiences() {
               {cta}
               <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
             </Link>
-          </div>
+          </Reveal>
         ))}
       </div>
     </Section>

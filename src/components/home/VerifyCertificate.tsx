@@ -6,6 +6,7 @@ import { ShieldCheck } from "lucide-react";
 
 import { routes } from "@/lib/site";
 import { Button } from "@/components/ui/button";
+import { Reveal } from "@/components/Reveal";
 
 export function VerifyCertificate() {
   const router = useRouter();
@@ -36,7 +37,7 @@ export function VerifyCertificate() {
       <div className="container relative mx-auto py-20 sm:py-24 lg:py-28">
         <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
           {/* Left copy */}
-          <div>
+          <Reveal>
             <p className="eyebrow text-gold-soft">Certificate verification</p>
             <h2 className="font-serif-display mt-4 text-4xl leading-[1.08] text-white sm:text-5xl">
               Verify an LBE certificate in seconds.
@@ -45,10 +46,10 @@ export function VerifyCertificate() {
               Enter the certificate ID to confirm the holder&rsquo;s identity, LBE
               score and qualification status.
             </p>
-          </div>
+          </Reveal>
 
           {/* Right panel */}
-          <div className="corner-frame paper-panel relative border border-gold/35 bg-card p-7 shadow-lift sm:p-9">
+          <Reveal delay={120} className="corner-frame paper-panel relative border border-gold/35 bg-card p-7 shadow-lift sm:p-9">
             <span className="gold-foil flex size-14 items-center justify-center rounded-full text-white shadow-gold">
               <ShieldCheck className="size-6" />
             </span>
@@ -76,7 +77,7 @@ export function VerifyCertificate() {
             <p className="mt-4 text-center text-sm text-muted-foreground">
               Secure and publicly accessible.
             </p>
-          </div>
+          </Reveal>
         </div>
       </div>
     </section>

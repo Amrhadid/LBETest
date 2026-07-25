@@ -1,4 +1,5 @@
 import { Section, SectionHeading } from "@/components/Section";
+import { Reveal } from "@/components/Reveal";
 import { cn } from "@/lib/utils";
 
 type Level = {
@@ -53,8 +54,10 @@ export function ScoreSystem() {
 
       <ol className="relative mx-auto mt-14 max-w-4xl space-y-3 before:absolute before:bottom-8 before:left-[2.05rem] before:top-8 before:w-px before:bg-gold/25 sm:before:left-[5.5rem]">
         {levels.map((level, index) => (
-          <li
+          <Reveal
+            as="li"
             key={level.code}
+            delay={index * 80}
             className={cn(
               "paper-panel group relative flex flex-col gap-3 border bg-card/95 p-6 pl-20 transition-all duration-300 hover:translate-x-1 hover:border-gold/40 sm:flex-row sm:items-center sm:gap-8 sm:pl-6",
               level.qualified ? "border-gold/60 ring-1 ring-gold/25" : "border-gold/20",
@@ -77,7 +80,7 @@ export function ScoreSystem() {
             <p className="text-[15px] leading-relaxed text-muted-foreground">
               {level.blurb}
             </p>
-          </li>
+          </Reveal>
         ))}
       </ol>
     </Section>

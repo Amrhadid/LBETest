@@ -1,6 +1,7 @@
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
+import { Reveal } from "@/components/Reveal";
 
 type SectionProps = React.HTMLAttributes<HTMLElement> & {
   as?: "section" | "div";
@@ -50,7 +51,7 @@ export function SectionHeading({
   className?: string;
 }) {
   return (
-    <div
+    <Reveal
       className={cn(
         "max-w-2xl",
         align === "center" ? "mx-auto text-center" : "text-left",
@@ -80,6 +81,6 @@ export function SectionHeading({
           {description}
         </p>
       )}
-    </div>
+    </Reveal>
   );
 }

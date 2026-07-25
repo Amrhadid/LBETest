@@ -13,7 +13,7 @@ export function Certificate({ className }: { className?: string }) {
         aria-hidden
         className="absolute -inset-5 -z-10 bg-[radial-gradient(circle,rgb(198_138_30_/_0.16),transparent_67%)] blur-xl"
       />
-      <div className="corner-frame relative aspect-[210/297] w-full overflow-hidden border border-gold/35 bg-white p-1.5 shadow-paper transition-transform duration-500 sm:p-2 lg:[transform:rotateY(-3deg)_rotateZ(-0.7deg)] lg:hover:[transform:rotateY(0)_rotateZ(0)]">
+      <div className="cert-shine corner-frame relative aspect-[210/297] w-full overflow-hidden border border-gold/35 bg-white p-1.5 shadow-paper transition-transform duration-500 sm:p-2 lg:[transform:rotateY(-3deg)_rotateZ(-0.7deg)] lg:hover:[transform:rotateY(0)_rotateZ(0)]">
         <AssetImage
           src="/Certificate.png"
           alt="Official Locrativ Certificate of Achievement sample"

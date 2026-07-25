@@ -1,4 +1,5 @@
 import { Section, SectionHeading } from "@/components/Section";
+import { Reveal } from "@/components/Reveal";
 import {
   Accordion,
   AccordionContent,
@@ -47,10 +48,12 @@ export function Faq() {
       <div className="mx-auto mt-12 max-w-3xl">
         <Accordion type="single" collapsible className="space-y-3">
           {faqs.map((item, i) => (
-            <AccordionItem key={item.q} value={`item-${i}`}>
-              <AccordionTrigger>{item.q}</AccordionTrigger>
-              <AccordionContent>{item.a}</AccordionContent>
-            </AccordionItem>
+            <Reveal key={item.q} delay={i * 60}>
+              <AccordionItem value={`item-${i}`}>
+                <AccordionTrigger>{item.q}</AccordionTrigger>
+                <AccordionContent>{item.a}</AccordionContent>
+              </AccordionItem>
+            </Reveal>
           ))}
         </Accordion>
       </div>
