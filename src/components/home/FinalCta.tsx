@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+import { Reveal } from "@/components/Reveal";
 import { routes } from "@/lib/site";
 
 export function FinalCta() {
@@ -23,7 +24,7 @@ export function FinalCta() {
                 "radial-gradient(50% 100% at 50% 0%, rgb(198 138 30 / 0.35), transparent 70%)",
             }}
           />
-          <div className="relative mx-auto max-w-2xl">
+          <Reveal className="relative mx-auto max-w-2xl">
             <h2 className="font-serif-display text-4xl leading-[1.02] text-white sm:text-6xl">
               Ready to prove your Business English?
             </h2>
@@ -39,7 +40,7 @@ export function FinalCta() {
                 <Link href={routes.signIn}>Sign In</Link>
               </Button>
             </div>
-          </div>
+          </Reveal>
         </div>
       </div>
     </section>

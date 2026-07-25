@@ -166,6 +166,66 @@
       );
   }
 
+  /*
+   * Scroll-reveal: gentle fade + rise as elements enter the viewport.
+   * The hidden state is gated behind `html.has-js` so content is always
+   * visible without JS and for crawlers. Only opacity/transform animate,
+   * so there is zero layout shift.
+   */
+  .has-js [data-reveal] {
+    opacity: 0;
+    transform: translateY(22px);
+    transition:
+      opacity 0.85s cubic-bezier(0.22, 0.61, 0.36, 1),
+      transform 0.85s cubic-bezier(0.22, 0.61, 0.36, 1);
+    will-change: opacity, transform;
+  }
+  .has-js [data-reveal][data-inview] {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* Sheen sweep across gold-foil CTAs on hover/focus. */
+  .btn-sheen {
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-sheen::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      110deg,
+      transparent 32%,
+      rgb(255 255 255 / 0.55) 50%,
+      transparent 68%
+    );
+    transform: translateX(-160%);
+    transition: transform 0.75s ease;
+    pointer-events: none;
+  }
+  .btn-sheen:hover::after,
+  .btn-sheen:focus-visible::after {
+    transform: translateX(160%);
+  }
+
+  /* Slow gleam sweeping across the certificate artwork. */
+  .cert-shine::after {
+    content: "";
+    position: absolute;
+    inset: -30%;
+    background: linear-gradient(
+      104deg,
+      transparent 43%,
+      rgb(255 255 255 / 0.5) 50%,
+      transparent 57%
+    );
+    transform: translateX(-120%) rotate(6deg);
+    animation: cert-shine 7s ease-in-out 1.6s infinite;
+    pointer-events: none;
+    z-index: 5;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
@@ -175,5 +235,32 @@
       transition-duration: 0.001ms !important;
       scroll-behavior: auto !important;
     }
+    /* Never leave content hidden if motion is reduced. */
+    .has-js [data-reveal] {
+      opacity: 1 !important;
+      transform: none !important;
+    }
+    .cert-shine::after,
+    .btn-sheen::after {
+      display: none;
+    }
+  }
+}
+
+@keyframes cert-shine {
+  0% {
+    transform: translateX(-120%) rotate(6deg);
+    opacity: 0;
+  }
+  14% {
+    opacity: 0.85;
+  }
+  42% {
+    opacity: 0.85;
+  }
+  56%,
+  100% {
+    transform: translateX(120%) rotate(6deg);
+    opacity: 0;
   }
 }

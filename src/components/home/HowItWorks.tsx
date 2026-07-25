@@ -2,6 +2,7 @@ import { MonitorCheck, ScrollText, Share2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import { Section, SectionHeading } from "@/components/Section";
+import { Reveal } from "@/components/Reveal";
 
 type Step = { n: string; icon: LucideIcon; title: string; blurb: string };
 
@@ -40,9 +41,11 @@ export function HowItWorks() {
           aria-hidden
           className="absolute left-0 right-0 top-8 hidden h-px bg-gradient-to-r from-transparent via-gold/35 to-transparent md:block"
         />
-        {steps.map((step) => (
-          <li
+        {steps.map((step, i) => (
+          <Reveal
+            as="li"
             key={step.n}
+            delay={i * 110}
             className="paper-panel group relative flex flex-col items-start border border-gold/25 bg-card p-8 transition-all duration-300 hover:-translate-y-1 hover:border-gold/50 hover:shadow-lift"
           >
             <div className="flex w-full items-center justify-between">
@@ -59,7 +62,7 @@ export function HowItWorks() {
             <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">
               {step.blurb}
             </p>
-          </li>
+          </Reveal>
         ))}
       </ol>
     </Section>
