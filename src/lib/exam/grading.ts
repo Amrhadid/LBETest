@@ -38,11 +38,24 @@ export interface GradeResult {
   is_correct: boolean;
 }
 
-/** Only text open-ended items are graded in this step. */
+/** Text open-ended items graded by AI: name the term (4), write the definition (5). */
 export function isAiTextGraded(type: QuestionType): boolean {
   return (
     type === QuestionType.NameTheTerm || type === QuestionType.WriteTheDefinition
   );
+}
+
+/** Voice open-ended items graded by AI (from a transcript): types 3 & 6. */
+export function isAiVoiceGraded(type: QuestionType): boolean {
+  return (
+    type === QuestionType.RespondToSituation ||
+    type === QuestionType.SpeakAboutSource
+  );
+}
+
+/** Any AI-graded open-ended item (text or voice). */
+export function isAiGraded(type: QuestionType): boolean {
+  return isAiTextGraded(type) || isAiVoiceGraded(type);
 }
 
 /** JSON-Schema for Claude structured output (no numeric bounds — clamped in code). */
@@ -94,10 +107,18 @@ export function buildGradingPrompt(
 ): { system: string; user: string } {
   const rubric = getRubric(item);
   const maxScore = rubric.max_score ?? 1;
+  const kindByType: Record<number, string> = {
+    [QuestionType.RespondToSituation]:
+      "respond appropriately (spoken) to a business situation",
+    [QuestionType.NameTheTerm]: "name the correct business-English term",
+    [QuestionType.WriteTheDefinition]:
+      "write a definition of a business-English term",
+    [QuestionType.SpeakAboutSource]:
+      "answer a spoken question about the source material",
+  };
   const kind =
-    item.question_type === QuestionType.NameTheTerm
-      ? "name the correct business-English term"
-      : "write a definition of a business-English term";
+    kindByType[item.question_type] ?? "answer an open-ended business-English item";
+  const isVoice = isAiVoiceGraded(item.question_type);
 
   const system =
     "You are an expert grader for the Locrativ Business English (LBE) exam. " +
@@ -116,7 +137,9 @@ export function buildGradingPrompt(
       : "- Criteria: (none specified — grade holistically against the model answer)",
     rubric.model_answer ? `- Model answer: ${rubric.model_answer}` : "",
     rubric.guidance ? `- Guidance: ${rubric.guidance}` : "",
-    `\nCandidate's answer:\n${candidateAnswer || "(no answer submitted)"}`,
+    isVoice
+      ? `\nCandidate's spoken answer (speech-to-text transcript — ignore transcription artifacts, minor disfluencies, and filler words):\n${candidateAnswer || "(no speech detected)"}`
+      : `\nCandidate's answer:\n${candidateAnswer || "(no answer submitted)"}`,
     `\nReturn: score (0..${maxScore}), confidence (0..1), a short feedback note, and per-criterion met flags.`,
   ]
     .filter(Boolean)

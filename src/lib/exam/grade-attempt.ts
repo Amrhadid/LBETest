@@ -1,24 +1,40 @@
 /**
- * Grade the text open-ended responses (types 4 & 5) of a submitted attempt,
- * persist AI scores, and flag low-confidence / near-threshold cases into the
- * review_queue for step-10 human review.
+ * Grade the AI-gradable open-ended responses of a submitted attempt and stage
+ * them for human approval.
  *
- * SERVER ONLY. Writes authoritatively via the service-role client (grading is
- * not client-supplied). Voice items (types 3 & 6) are skipped — deferred until
- * a transcription step exists. Requires ANTHROPIC_API_KEY on the Worker; if it
- * isn't set, each grade attempt records a `grading_error` flag rather than
- * throwing, so the caller still gets a summary.
+ * Covers text items — type 4 (name the term) & type 5 (write the definition) —
+ * and voice items — type 3 (respond to a situation) & type 6 (speak about the
+ * source). Voice answers are transcribed (Google STT) before grading.
+ *
+ * APPROVAL GATE (supersedes the earlier "spot-check only" design): an AI grade
+ * is NEVER final on its own. Every AI grade is written as a *proposal*
+ * (ai_score / ai_is_correct / grade_status='pending_approval') and does NOT
+ * touch the authoritative score/is_correct columns. A teacher/admin promotes it
+ * via the approve_response_grade RPC before it counts toward section pass/fail,
+ * final score, or a certificate. Every proposal is queued into review_queue so
+ * the approval step is a required gate, not an optional spot-check.
+ *
+ * SERVER ONLY. Writes via the service-role client. Requires ANTHROPIC_API_KEY
+ * (grading) and, for voice, GOOGLE_STT_API_KEY (transcription); a missing key
+ * or a call failure records a `grading_error` flag rather than throwing, so the
+ * caller still gets a summary.
  */
 
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { anthropicGraderCall } from "@/lib/exam/grading.server";
+import {
+  googleTranscribeCall,
+  transcribeResponseAudio,
+  type TranscribeCall,
+} from "@/lib/exam/transcription.server";
 import {
   GRADING_MODEL,
   gradeTextResponse,
   answerText,
   responseFlags,
   isNearThreshold,
-  isAiTextGraded,
+  isAiGraded,
+  isAiVoiceGraded,
   type GraderCall,
 } from "@/lib/exam/grading";
 import {
@@ -54,12 +70,23 @@ function toExamItem(row: Record<string, unknown>): ExamItem {
   };
 }
 
+/** Storage path for a voice answer, or null if none was recorded. */
+function audioPathOf(answer: ResponseAnswer): string | null {
+  if (answer && typeof answer === "object" && "audio_path" in answer) {
+    const p = (answer as { audio_path?: unknown }).audio_path;
+    if (typeof p === "string" && p.length > 0) return p;
+  }
+  return null;
+}
+
 /**
- * @param call injectable grader (defaults to Claude Sonnet 5) — tests pass a mock.
+ * @param call       injectable grader (defaults to Claude Sonnet 5) — tests mock it.
+ * @param transcribe injectable STT (defaults to Google STT) — tests mock it.
  */
 export async function gradeAttemptTextResponses(
   attemptId: string,
   call: GraderCall = anthropicGraderCall,
+  transcribe: TranscribeCall = googleTranscribeCall,
 ): Promise<GradeAttemptSummary> {
   const svc = createServiceRoleClient();
 
@@ -88,32 +115,72 @@ export async function gradeAttemptTextResponses(
   let graded = 0;
   let errors = 0;
   let flags = 0;
-  // AI-correct tally per section, to combine with auto-graded scores below.
+  // AI-proposed correct tally per section — a review hint only. Proposals do
+  // not count until approved, so this feeds near-threshold flags, not scores.
   const aiCorrectByLevel = new Map<number, number>();
+
+  const flagResponse = async (
+    r: { id: string },
+    item: ExamItem,
+    reason: string,
+    detail: Record<string, unknown>,
+  ) => {
+    await svc.from("review_queue").upsert(
+      {
+        attempt_id: attemptId,
+        response_id: r.id,
+        item_id: item.id,
+        lbe_level: item.lbe_level,
+        reason,
+        detail: detail as unknown as never,
+      },
+      { onConflict: "response_id,reason" },
+    );
+    flags += 1;
+  };
 
   for (const r of responses ?? []) {
     if (!r.item_id) continue;
     const item = items.get(r.item_id as string);
-    if (!item || !isAiTextGraded(item.question_type)) continue;
-
-    const text = answerText(r.answer as ResponseAnswer);
+    if (!item || !isAiGraded(item.question_type)) continue;
 
     try {
-      const grade = await gradeTextResponse(item, text, call);
+      // 1. Resolve the candidate's answer text. Voice items are transcribed
+      //    first (and the transcript is persisted for reviewers).
+      let candidateText: string;
+      if (isAiVoiceGraded(item.question_type)) {
+        const audioPath = audioPathOf(r.answer as ResponseAnswer);
+        if (!audioPath) {
+          errors += 1;
+          await flagResponse(r, item, "grading_error", {
+            message: "no audio recorded for spoken response",
+          });
+          continue;
+        }
+        candidateText = await transcribeResponseAudio(audioPath, transcribe);
+        await svc
+          .from("responses")
+          .update({ transcript: candidateText })
+          .eq("id", r.id);
+      } else {
+        candidateText = answerText(r.answer as ResponseAnswer);
+      }
+
+      // 2. Grade → proposal (NOT authoritative). Leave score/is_correct NULL.
+      const grade = await gradeTextResponse(item, candidateText, call);
 
       await svc
         .from("responses")
         .update({
-          score: grade.score,
-          is_correct: grade.is_correct,
+          ai_score: grade.score,
+          ai_is_correct: grade.is_correct,
           ai_confidence: grade.confidence,
           ai_feedback: {
             feedback: grade.feedback,
             criteria: grade.criteria,
             model: GRADING_MODEL,
           } as unknown as never,
-          graded_by: "ai",
-          graded_at: new Date().toISOString(),
+          grade_status: "pending_approval",
         })
         .eq("id", r.id);
 
@@ -125,40 +192,25 @@ export async function gradeAttemptTextResponses(
         );
       }
 
+      // 3. Queue for mandatory approval, plus a low-confidence flag if warranted.
+      await flagResponse(r, item, "pending_approval", {
+        ai_score: grade.score,
+        ai_is_correct: grade.is_correct,
+        confidence: grade.confidence,
+      });
       for (const f of responseFlags(grade)) {
-        await svc.from("review_queue").upsert(
-          {
-            attempt_id: attemptId,
-            response_id: r.id,
-            item_id: item.id,
-            lbe_level: item.lbe_level,
-            reason: f.reason,
-            detail: f.detail as unknown as never,
-          },
-          { onConflict: "response_id,reason" },
-        );
-        flags += 1;
+        await flagResponse(r, item, f.reason, f.detail);
       }
     } catch (e) {
       errors += 1;
-      await svc.from("review_queue").upsert(
-        {
-          attempt_id: attemptId,
-          response_id: r.id,
-          item_id: item.id,
-          lbe_level: item.lbe_level,
-          reason: "grading_error",
-          detail: {
-            message: e instanceof Error ? e.message : "grading failed",
-          } as unknown as never,
-        },
-        { onConflict: "response_id,reason" },
-      );
+      await flagResponse(r, item, "grading_error", {
+        message: e instanceof Error ? e.message : "grading failed",
+      });
     }
   }
 
-  // Near-threshold flags: auto-graded correct (from section_scores) + AI-correct.
-  // Rebuild them cleanly for this attempt so re-runs stay idempotent.
+  // Near-threshold flags: auto-graded correct (section_scores) + AI-proposed
+  // correct. A review hint; rebuilt cleanly per attempt so re-runs stay idempotent.
   await svc
     .from("review_queue")
     .delete()
