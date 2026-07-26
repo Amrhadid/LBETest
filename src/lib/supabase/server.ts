@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
 import type { Database } from "@/lib/supabase/types";
+import { getServerSupabaseEnv } from "@/lib/supabase/env";
 
 /**
  * Server Supabase client for Server Components, Route Handlers and Server
@@ -14,8 +15,7 @@ import type { Database } from "@/lib/supabase/types";
 export async function createClient() {
   const cookieStore = await cookies();
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const { url, anonKey } = getServerSupabaseEnv();
 
   if (!url || !anonKey) {
     throw new Error(
@@ -49,8 +49,7 @@ export async function createClient() {
  * into client code. Requires SUPABASE_SERVICE_ROLE_KEY.
  */
 export function createServiceRoleClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const { url, serviceKey } = getServerSupabaseEnv();
 
   if (!url || !serviceKey) {
     throw new Error(
