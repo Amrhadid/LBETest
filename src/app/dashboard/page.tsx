@@ -15,22 +15,33 @@ export const metadata: Metadata = {
 };
 
 export default async function DashboardPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Resolve the user + profile without ever crashing on an auth/session error.
+  let user: { id: string; email?: string } | null = null;
+  let profile: { full_name: string | null; role: string | null } | null = null;
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user: u },
+    } = await supabase.auth.getUser();
+    user = u;
+
+    if (user) {
+      // Read the profile row auto-created on sign-up (RLS: own row only).
+      const { data } = await supabase
+        .from("profiles")
+        .select("full_name, role")
+        .eq("id", user.id)
+        .maybeSingle();
+      profile = data;
+    }
+  } catch {
+    user = null;
+  }
 
   // Belt-and-braces: middleware also gates this route, but guard here too.
   if (!user) {
     redirect("/login");
   }
-
-  // Read the profile row auto-created on sign-up (RLS: own row only).
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name, role")
-    .eq("id", user.id)
-    .maybeSingle();
 
   const displayName = profile?.full_name ?? user.email ?? "there";
 
