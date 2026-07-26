@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
 import type { Database } from "@/lib/supabase/types";
+import { getServerSupabaseEnv } from "@/lib/supabase/env";
 
 /**
  * Refreshes the Supabase auth session on each request and rewrites the auth
@@ -13,8 +14,7 @@ import type { Database } from "@/lib/supabase/types";
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const { url, anonKey } = getServerSupabaseEnv();
 
   // If Supabase isn't configured, don't block the site — just pass through.
   if (!url || !anonKey) {
