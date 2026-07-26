@@ -12,7 +12,7 @@ import { SectionBadge } from "@/components/exam/SectionBadge";
 import { SourceStimulus } from "@/components/exam/SourceStimulus";
 import { QuestionRenderer } from "@/components/exam/QuestionRenderer";
 import { SubmittedScreen } from "@/components/exam/SubmittedScreen";
-import { saveResponse, logEvent, submitAttempt } from "@/app/start/actions";
+import { saveResponse, logEvent, submitAttempt, scoreSection } from "@/app/start/actions";
 
 export type RunnerSection = { level: LbeLevel; items: ExamItem[] };
 
@@ -162,6 +162,10 @@ export function ExamRunner({
     }
 
     await logEvent(attemptId, "section_submit", { section: section.level, auto });
+
+    // Server-side auto-scoring of this section's selection items. Result is
+    // never returned to the candidate (no interim feedback).
+    await scoreSection(attemptId, section.level);
 
     if (isLastSection) {
       await submitAttempt(attemptId);

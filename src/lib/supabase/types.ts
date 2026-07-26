@@ -298,12 +298,38 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["access_codes"]["Insert"]>;
         Relationships: [];
       };
+      section_scores: {
+        Row: {
+          attempt_id: string;
+          lbe_level: number;
+          auto_correct_count: number;
+          auto_total: number;
+          updated_at: string;
+        };
+        Insert: {
+          attempt_id: string;
+          lbe_level: number;
+          auto_correct_count?: number;
+          auto_total?: number;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["section_scores"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
       redeem_access_code: {
         Args: { p_code: string };
         Returns: string;
+      };
+      score_section: {
+        Args: { p_attempt_id: string; p_lbe_level: number };
+        Returns: undefined;
+      };
+      score_attempt: {
+        Args: { p_attempt_id: string };
+        Returns: undefined;
       };
     };
     Enums: Record<string, never>;

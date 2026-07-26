@@ -176,6 +176,27 @@ export async function logEvent(
   });
 }
 
+/**
+ * Server-side auto-scoring of a section's selection items (types 1 & 2).
+ * Runs when a section is submitted or auto-advances on timeout. Returns nothing
+ * to the client — scoring is bookkeeping only, never shown to the candidate
+ * (no interim feedback). Best-effort: a failure here never blocks the attempt.
+ */
+export async function scoreSection(
+  attemptId: string,
+  lbeLevel: number,
+): Promise<void> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+  await supabase.rpc("score_section", {
+    p_attempt_id: attemptId,
+    p_lbe_level: lbeLevel,
+  });
+}
+
 /** Finalize the attempt: mark submitted. */
 export async function submitAttempt(attemptId: string): Promise<ActionState> {
   const supabase = await createClient();
@@ -200,6 +221,10 @@ export async function submitAttempt(attemptId: string): Promise<ActionState> {
     type: "attempt_submit",
     payload: {},
   });
+
+  // Safety net: auto-score every section server-side (idempotent) in case a
+  // per-section scoring call was missed. Never blocks submission.
+  await supabase.rpc("score_attempt", { p_attempt_id: attemptId });
 
   revalidatePath("/start");
   return { message: "submitted" };
