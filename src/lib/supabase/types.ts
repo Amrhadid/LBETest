@@ -210,6 +210,9 @@ export interface Database {
           score: number | null;
           graded_by: string | null;
           graded_at: string | null;
+          transcript: string | null;
+          ai_confidence: number | null;
+          ai_feedback: Json | null;
           created_at: string;
         };
         Insert: {
@@ -221,6 +224,9 @@ export interface Database {
           score?: number | null;
           graded_by?: string | null;
           graded_at?: string | null;
+          transcript?: string | null;
+          ai_confidence?: number | null;
+          ai_feedback?: Json | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["responses"]["Insert"]>;
@@ -314,6 +320,36 @@ export interface Database {
           updated_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["section_scores"]["Insert"]>;
+        Relationships: [];
+      };
+      review_queue: {
+        Row: {
+          id: string;
+          attempt_id: string;
+          response_id: string | null;
+          item_id: string | null;
+          lbe_level: number | null;
+          reason: string;
+          detail: Json | null;
+          status: string;
+          created_at: string;
+          resolved_by: string | null;
+          resolved_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          attempt_id: string;
+          response_id?: string | null;
+          item_id?: string | null;
+          lbe_level?: number | null;
+          reason: string;
+          detail?: Json | null;
+          status?: string;
+          created_at?: string;
+          resolved_by?: string | null;
+          resolved_at?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["review_queue"]["Insert"]>;
         Relationships: [];
       };
     };
