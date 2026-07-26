@@ -17,6 +17,7 @@ export function QuestionRenderer({
   disabled,
   revealResult,
   uploader,
+  disableClipboard,
 }: {
   item: ExamItem;
   value: ResponseAnswer;
@@ -24,6 +25,8 @@ export function QuestionRenderer({
   disabled?: boolean;
   revealResult?: boolean;
   uploader?: (blob: Blob) => Promise<string>;
+  /** Exam lockdown: block copy/paste in free-text (type 5). */
+  disableClipboard?: boolean;
 }) {
   switch (item.question_type) {
     case QuestionType.ChooseCorrect:
@@ -54,6 +57,7 @@ export function QuestionRenderer({
           value={value}
           onChange={onChange}
           disabled={disabled}
+          disableClipboard={disableClipboard}
         />
       );
     case QuestionType.RespondToSituation:

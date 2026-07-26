@@ -21,10 +21,13 @@ export type ItemSourceType =
   | "article"
   | "dialogue"
   | "email"
+  | "mini_article"
+  | "memo"
   | "script"
   | "situation"
   | "audio";
 export type CertificateStatus = "valid" | "expired" | "revoked";
+export type AccessCodeStatus = "unused" | "used" | "revoked";
 
 type Json = string | number | boolean | null | { [key: string]: Json } | Json[];
 
@@ -176,6 +179,7 @@ export interface Database {
           provisional_score: number | null;
           final_score: number | null;
           lbe_level: number | null;
+          access_code_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -190,6 +194,7 @@ export interface Database {
           provisional_score?: number | null;
           final_score?: number | null;
           lbe_level?: number | null;
+          access_code_id?: string | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["attempts"]["Insert"]>;
@@ -269,9 +274,38 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["certificates"]["Insert"]>;
         Relationships: [];
       };
+      access_codes: {
+        Row: {
+          id: string;
+          code: string;
+          exam_id: string | null;
+          status: AccessCodeStatus;
+          assigned_org_id: string | null;
+          redeemed_by: string | null;
+          redeemed_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          code: string;
+          exam_id?: string | null;
+          status?: AccessCodeStatus;
+          assigned_org_id?: string | null;
+          redeemed_by?: string | null;
+          redeemed_at?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["access_codes"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      redeem_access_code: {
+        Args: { p_code: string };
+        Returns: string;
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };
