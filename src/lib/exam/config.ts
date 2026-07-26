@@ -9,8 +9,8 @@
 
 export const ACTIVE_EXAM_ID = "11111111-1111-1111-1111-111111111111";
 
-/** Default per-section countdown, in seconds (10 minutes). */
-export const DEFAULT_SECTION_SECONDS = 600;
+/** Default per-section countdown, in seconds (12 minutes → 60 min total). */
+export const DEFAULT_SECTION_SECONDS = 720;
 
 export interface ExamConfig {
   /** Seconds allowed per section. Overridable via exams.config.section_seconds. */

@@ -1,39 +1,38 @@
-import Link from "next/link";
 import { Check } from "lucide-react";
 
 import { Section, SectionHeading } from "@/components/Section";
 import { Reveal } from "@/components/Reveal";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { pricingPlans } from "@/lib/site";
+import { pricingPlans, contact } from "@/lib/site";
 
 const plans = [
   {
     title: "Test Only",
-    price: "$89",
-    note: "One-time payment",
+    price: pricingPlans.testOnly.priceUsd,
+    note: pricingPlans.testOnly.priceEgp,
     features: [
       "Full online LBE test",
       "LBE score and qualification",
       "Skill breakdown",
       "Verifiable digital certificate",
     ],
-    cta: "Book Test Only",
+    cta: "Buy Test Only",
     href: pricingPlans.testOnly.href,
     featured: false,
     badge: null as string | null,
   },
   {
     title: "Test + Training",
-    price: "$189",
-    note: "One-time payment",
+    price: pricingPlans.testTraining.priceUsd,
+    note: pricingPlans.testTraining.priceEgp,
     features: [
       "Everything in Test Only",
       "Complete LBE preparation training",
       "Workplace language practice",
       "Test-taking strategies",
     ],
-    cta: "Get Test + Training",
+    cta: "Buy Test + Training",
     href: pricingPlans.testTraining.href,
     featured: true,
     badge: "Best value",
@@ -71,8 +70,13 @@ export function Pricing() {
               <span className="font-serif-display text-5xl text-charcoal tabular-nums">
                 {plan.price}
               </span>
-              <span className="text-sm text-muted-foreground">{plan.note}</span>
+              <span className="text-sm text-muted-foreground">
+                ≈ {plan.note}
+              </span>
             </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              One-time payment
+            </p>
 
             <ul className="mt-7 flex-1 space-y-3.5">
               {plan.features.map((f) => (
@@ -91,11 +95,28 @@ export function Pricing() {
               size="lg"
               className="mt-8 w-full"
             >
-              <Link href={plan.href}>{plan.cta}</Link>
+              <a href={plan.href} target="_blank" rel="noopener noreferrer">
+                {plan.cta}
+              </a>
             </Button>
           </Reveal>
         ))}
       </div>
+
+      <Reveal className="mx-auto mt-10 max-w-2xl text-center">
+        <p className="text-sm text-muted-foreground">
+          Prefer to pay manually? Message us on{" "}
+          <a
+            href={contact.whatsappHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-gold underline-offset-4 hover:underline"
+          >
+            WhatsApp ({contact.whatsapp})
+          </a>{" "}
+          and we&rsquo;ll arrange your access code.
+        </p>
+      </Reveal>
     </Section>
   );
 }
