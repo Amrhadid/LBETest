@@ -8,6 +8,7 @@ import { Mail, KeyRound, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { GoogleButton } from "@/components/auth/GoogleButton";
 import {
   signInWithPassword,
   signUpWithPassword,
@@ -133,14 +134,29 @@ export function AuthForm() {
           </FormShell>
         )}
 
-        {/* TODO(auth): Google OAuth sign-in plugs in here. Add a
-            supabase.auth.signInWithOAuth({ provider: "google" }) button once
-            the Google provider is configured in the Supabase dashboard. */}
-        <div className="mt-6 border-t border-gold/15 pt-5 text-center">
-          <p className="text-xs text-muted-foreground">
-            Google sign-in is coming soon.
-          </p>
-        </div>
+        {/* Google OAuth — available on the sign-in and sign-up tabs. Reuses the
+            /auth/callback route (same PKCE exchange as magic-link). */}
+        {mode !== "magic" && (
+          <div className="mt-6">
+            <div className="relative my-5" role="separator" aria-label="or">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-gold/15" />
+              </div>
+              <div className="relative flex justify-center">
+                <span className="bg-card px-3 text-xs uppercase tracking-wide text-muted-foreground">
+                  or
+                </span>
+              </div>
+            </div>
+            <GoogleButton
+              label={
+                mode === "signup"
+                  ? "Sign up with Google"
+                  : "Continue with Google"
+              }
+            />
+          </div>
+        )}
       </div>
     </div>
   );
