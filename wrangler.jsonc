@@ -7,5 +7,16 @@
   "assets": {
     "binding": "ASSETS",
     "directory": ".open-next/assets"
+  },
+  // PUBLIC Supabase config only. `wrangler deploy` replaces the Worker's
+  // plain-text vars with what's declared here, so these must live in config
+  // (not just the dashboard) or every deploy wipes them. Both values are public
+  // by design — the URL is public and the anon key is protected by RLS and is
+  // already shipped to every browser. NEVER put SUPABASE_SERVICE_ROLE_KEY here;
+  // set it as a Worker secret (`wrangler secret put SUPABASE_SERVICE_ROLE_KEY`),
+  // which is preserved across deploys.
+  "vars": {
+    "NEXT_PUBLIC_SUPABASE_URL": "https://hjqaflgcwguddfxypbrq.supabase.co",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhqcWFmbGdjd2d1ZGRmeHlwYnJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUwMTM3NTcsImV4cCI6MjEwMDU4OTc1N30.VdE5Nifl3qCe57IB31EXFD8DV2Q9Np9LqaB6yHBm9bs"
   }
 }
