@@ -30,6 +30,23 @@ comment on column public.items.question_type is
   '1=choose correct answer (MCQ); 2=choose wrong answer; 3=respond to a situation (spoken); 4=given a definition, name the term; 5=given a term, write the definition; 6=speaking question about the source (spoken).';
 
 -- -----------------------------------------------------------------------------
+-- 1b. source_type: align with the engine SourceType vocabulary.
+-- 0001 allowed ('article',...); the engine uses 'mini_article' and adds 'memo'.
+-- Keep 'article' too so any pre-existing rows remain valid (superset).
+-- -----------------------------------------------------------------------------
+alter table public.items
+  drop constraint if exists items_source_type_check;
+
+alter table public.items
+  add constraint items_source_type_check
+  check (source_type in (
+    'email','dialogue','mini_article','memo','script','situation','audio','article'
+  ));
+
+comment on column public.items.source_type is
+  'Source stimulus kind: email, dialogue, mini_article, memo, script, situation, audio (article kept for backward compatibility).';
+
+-- -----------------------------------------------------------------------------
 -- 2. responses-audio storage bucket (private)
 -- -----------------------------------------------------------------------------
 -- Files are keyed by "<user_id>/<...>" so the first path segment identifies the
