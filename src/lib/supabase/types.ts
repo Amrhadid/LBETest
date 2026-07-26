@@ -213,6 +213,11 @@ export interface Database {
           transcript: string | null;
           ai_confidence: number | null;
           ai_feedback: Json | null;
+          ai_score: number | null;
+          ai_is_correct: boolean | null;
+          grade_status: string | null;
+          approved_by: string | null;
+          approved_at: string | null;
           created_at: string;
         };
         Insert: {
@@ -227,6 +232,11 @@ export interface Database {
           transcript?: string | null;
           ai_confidence?: number | null;
           ai_feedback?: Json | null;
+          ai_score?: number | null;
+          ai_is_correct?: boolean | null;
+          grade_status?: string | null;
+          approved_by?: string | null;
+          approved_at?: string | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["responses"]["Insert"]>;
@@ -365,6 +375,10 @@ export interface Database {
       };
       score_attempt: {
         Args: { p_attempt_id: string };
+        Returns: undefined;
+      };
+      approve_response_grade: {
+        Args: { p_response_id: string; p_decision: string };
         Returns: undefined;
       };
     };
