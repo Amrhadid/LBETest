@@ -81,7 +81,7 @@ const categories: FaqCategory[] = [
     title: "Registration",
     items: [
       { q: "How do I register?", a: "Sign in with your Google account, go to the Purchase page, choose your package, and complete your payment." },
-      { q: "How much does the exam cost?", a: "The exam costs $89 worldwide." },
+      { q: "How much does the exam cost?", a: "Test Only is $86 (4,400 EGP). Test + Training is $194 (10,000 EGP)." },
       { q: "What payment methods are accepted?", a: "Paymob or manual payment via WhatsApp (+20 109 796 5058)." },
       { q: "Can I cancel my booking?", a: "No. All bookings are non-refundable." },
       { q: "Can I reschedule my exam?", a: "No. Once your exam has been booked, it cannot be rescheduled." },

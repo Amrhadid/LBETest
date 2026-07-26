@@ -35,23 +35,29 @@ export const primaryNav: NavItem[] = [
 ];
 
 /**
- * Pricing plan identifiers, isolated here.
- * TODO(payments): replace `priceId` with the real product/price IDs from the
- * payment provider once the $89 (Test Only) and $189 (Test + Training)
- * products are configured. Until then, buttons route to the booking flow
- * with the plan slug so no checkout URL is invented.
+ * Pricing plans with live Paymob checkout links. Prices are shown in USD with
+ * the EGP equivalent charged by Paymob. Manual payment is also available via
+ * WhatsApp (see `contact.whatsapp`).
  */
 export const pricingPlans = {
   testOnly: {
     slug: "test-only",
-    priceId: null as string | null, // TODO(payments): real price ID
-    href: `${routes.book}?plan=test-only`,
+    priceUsd: "$86",
+    priceEgp: "4,400 EGP",
+    href: "https://paymob.link/RDOaq",
   },
   testTraining: {
     slug: "test-training",
-    priceId: null as string | null, // TODO(payments): real price ID
-    href: `${routes.book}?plan=test-training`,
+    priceUsd: "$194",
+    priceEgp: "10,000 EGP",
+    href: "https://paymob.link/avbCS",
   },
+} as const;
+
+/** Manual-payment / support contact. */
+export const contact = {
+  whatsapp: "+20 109 796 5058",
+  whatsappHref: "https://wa.me/201097965058",
 } as const;
 
 /**
