@@ -5,6 +5,7 @@ import { PageShell } from "@/components/PageShell";
 import { Section } from "@/components/Section";
 import { SubmittedScreen } from "@/components/exam/SubmittedScreen";
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server";
+import { getServerSupabaseEnv } from "@/lib/supabase/env";
 import { ACTIVE_EXAM_ID, parseExamConfig } from "@/lib/exam/config";
 import {
   type ExamItem,
@@ -148,6 +149,9 @@ export default async function StartPage() {
       );
     }
 
+    const { url, anonKey } = getServerSupabaseEnv();
+    const publicConfig = url && anonKey ? { url, anonKey } : undefined;
+
     return (
       <ExamRunner
         attemptId={inProgress.id}
@@ -156,6 +160,7 @@ export default async function StartPage() {
         sections={sections}
         initialResponses={initialResponses}
         initialSectionIndex={initialSectionIndex}
+        config={publicConfig}
       />
     );
   }

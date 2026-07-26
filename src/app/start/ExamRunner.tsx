@@ -5,7 +5,7 @@ import { AlertTriangle, Clock, Maximize } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { createClient } from "@/lib/supabase/client";
+import { createClient, type PublicSupabaseConfig } from "@/lib/supabase/client";
 import { uploadResponseAudio } from "@/lib/exam/storage";
 import { QuestionType, type ExamItem, type ResponseAnswer, type LbeLevel } from "@/lib/exam/types";
 import { SectionBadge } from "@/components/exam/SectionBadge";
@@ -28,6 +28,7 @@ export function ExamRunner({
   sections,
   initialResponses,
   initialSectionIndex,
+  config,
 }: {
   attemptId: string;
   userId: string;
@@ -35,6 +36,7 @@ export function ExamRunner({
   sections: RunnerSection[];
   initialResponses: Record<string, ResponseAnswer>;
   initialSectionIndex: number;
+  config?: PublicSupabaseConfig;
 }) {
   const [sectionIndex, setSectionIndex] = React.useState(
     Math.min(initialSectionIndex, sections.length - 1),
@@ -48,7 +50,7 @@ export function ExamRunner({
   const [isFullscreen, setIsFullscreen] = React.useState(false);
 
   const containerRef = React.useRef<HTMLDivElement | null>(null);
-  const supabase = React.useMemo(() => createClient(), []);
+  const supabase = React.useMemo(() => createClient(config), [config]);
   const debounceTimers = React.useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   // Guards against double-submitting a section (timer + click racing).
   const advancingRef = React.useRef(false);

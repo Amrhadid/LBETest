@@ -4,20 +4,25 @@ import * as React from "react";
 import { Loader2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
+import { createClient, type PublicSupabaseConfig } from "@/lib/supabase/client";
 
 /**
  * "Continue with Google" OAuth button. Uses the browser Supabase client to
  * start the OAuth flow and returns to the existing /auth/callback route (the
  * same PKCE callback used by magic-link), which exchanges the code and lands
  * the user on /dashboard.
+ *
+ * `config` carries the public Supabase URL + anon key from the server so the
+ * browser client works even when NEXT_PUBLIC_* wasn't inlined at build time.
  */
 export function GoogleButton({
   label = "Continue with Google",
   className,
+  config,
 }: {
   label?: string;
   className?: string;
+  config?: PublicSupabaseConfig;
 }) {
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -26,7 +31,7 @@ export function GoogleButton({
     setLoading(true);
     setError(null);
     try {
-      const supabase = createClient();
+      const supabase = createClient(config);
       const redirectTo = `${window.location.origin}/auth/callback?next=/dashboard`;
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",

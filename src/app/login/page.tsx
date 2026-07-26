@@ -5,6 +5,10 @@ import { PageShell } from "@/components/PageShell";
 import { Section } from "@/components/Section";
 import { AuthForm } from "@/components/auth/AuthForm";
 import { createClient } from "@/lib/supabase/server";
+import { getServerSupabaseEnv } from "@/lib/supabase/env";
+
+// Render per request so the runtime Supabase config is available.
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Log in",
@@ -28,6 +32,11 @@ export default async function LoginPage() {
     redirect("/dashboard");
   }
 
+  // Pass the public Supabase config to the browser so OAuth works even if
+  // NEXT_PUBLIC_* wasn't inlined at build time.
+  const { url, anonKey } = getServerSupabaseEnv();
+  const config = url && anonKey ? { url, anonKey } : undefined;
+
   return (
     <PageShell>
       <Section className="relative overflow-hidden">
@@ -45,7 +54,7 @@ export default async function LoginPage() {
             certificate.
           </p>
         </div>
-        <AuthForm />
+        <AuthForm config={config} />
       </Section>
     </PageShell>
   );
