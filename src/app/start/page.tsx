@@ -70,9 +70,15 @@ async function loadSections(): Promise<RunnerSection[]> {
 
 export default async function StartPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user: { id: string; email?: string } | null = null;
+  try {
+    const {
+      data: { user: u },
+    } = await supabase.auth.getUser();
+    user = u;
+  } catch {
+    user = null;
+  }
   if (!user) redirect("/login?redirectedFrom=/start");
 
   // Latest attempts for this user + exam (RLS: own rows only).

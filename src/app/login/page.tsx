@@ -12,12 +12,19 @@ export const metadata: Metadata = {
 };
 
 export default async function LoginPage() {
-  // Already signed in? Skip the form.
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (user) {
+  // Already signed in? Skip the form. Never let an auth/session error crash the
+  // page — fall through to the sign-in form if the check fails.
+  let signedIn = false;
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    signedIn = !!user;
+  } catch {
+    signedIn = false;
+  }
+  if (signedIn) {
     redirect("/dashboard");
   }
 
