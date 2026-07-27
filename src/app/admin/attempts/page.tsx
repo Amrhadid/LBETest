@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/admin/guard";
@@ -45,7 +46,11 @@ export default async function AdminAttemptsPage() {
         <tbody>
           {(attempts ?? []).map((a) => (
             <tr key={a.id} className="border-b border-gold/10 last:border-0">
-              <td className="p-3">{emails.get(a.user_id) ?? a.user_id.slice(0, 8)}</td>
+              <td className="p-3">
+                <Link href={`/admin/attempts/${a.id}`} className="text-gold underline-offset-4 hover:underline">
+                  {emails.get(a.user_id) ?? a.user_id.slice(0, 8)}
+                </Link>
+              </td>
               <td className="p-3">
                 <span className="rounded-full bg-gold/10 px-2 py-0.5 text-xs font-medium capitalize">
                   {a.status.replace("_", " ")}
