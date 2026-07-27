@@ -247,23 +247,23 @@
   }
 }
 
-/* Know the Test interactive product experience. */
-.kte { --kte-navy: #0b2a4a; --kte-teal: #12b3a6; background: #fff; }
-.kte-grid { background-image: radial-gradient(#12b3a6 1px, transparent 1px); background-size: 28px 28px; mask-image: linear-gradient(to bottom, black, transparent 82%); }
-.kte-dark-grid { opacity: .22; background-image: linear-gradient(#12b3a622 1px, transparent 1px), linear-gradient(90deg, #12b3a622 1px, transparent 1px); background-size: 42px 42px; mask-image: radial-gradient(circle, black, transparent 75%); }
-.kte-gradient { color: transparent; background: linear-gradient(100deg, #0b2a4a, #12b3a6, #0b2a4a); background-size: 200% auto; background-clip: text; animation: kte-gradient 5s linear infinite; }
-.kte-card { border: 1px solid rgb(11 42 74 / .08); border-radius: 1.5rem; background: rgb(255 255 255 / .84); padding: 1.75rem; box-shadow: 0 20px 55px -42px rgb(11 42 74 / .65); backdrop-filter: blur(18px); transition: transform .35s ease, box-shadow .35s ease, border-color .35s ease; }
-.kte-card:hover { transform: translateY(-7px) rotate(.35deg); border-color: rgb(18 179 166 / .25); box-shadow: 0 30px 65px -35px rgb(11 42 74 / .35); }
+/* Know the Test — themed to the gold-and-ivory Locrativ identity. */
+.kte { --kte-charcoal: #1d1d1f; --kte-gold: #c68a1e; }
+.kte-grid { background-image: radial-gradient(#c68a1e 1px, transparent 1px); background-size: 28px 28px; mask-image: linear-gradient(to bottom, black, transparent 82%); opacity: .5; }
+.kte-dark-grid { opacity: .22; background-image: linear-gradient(#c68a1e22 1px, transparent 1px), linear-gradient(90deg, #c68a1e22 1px, transparent 1px); background-size: 42px 42px; mask-image: radial-gradient(circle, black, transparent 75%); }
+.kte-gradient { color: transparent; background: linear-gradient(100deg, #1d1d1f, #c68a1e, #1d1d1f); background-size: 200% auto; background-clip: text; animation: kte-gradient 5s linear infinite; }
+.kte-card { border: 1px solid rgb(29 29 31 / .08); border-radius: 1.5rem; background: rgb(255 255 255 / .84); padding: 1.75rem; box-shadow: 0 20px 55px -42px rgb(29 29 31 / .55); backdrop-filter: blur(18px); transition: transform .35s ease, box-shadow .35s ease, border-color .35s ease; }
+.kte-card:hover { transform: translateY(-7px) rotate(.35deg); border-color: rgb(198 138 30 / .3); box-shadow: 0 30px 65px -35px rgb(29 29 31 / .3); }
 .kte-chip { display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; padding: 1rem 1.6rem; font-size: clamp(.9rem, 2vw, 1.15rem); font-weight: 650; transition: transform .25s, box-shadow .25s; }
-.kte-chip:hover { transform: translateY(-5px) rotate(-2deg); box-shadow: 0 15px 35px -15px #12b3a6; }
-.kte-word { display: inline-block; color: #12b3a6; animation: kte-word 4s ease-in-out infinite; }
+.kte-chip:hover { transform: translateY(-5px) rotate(-2deg); box-shadow: 0 15px 35px -15px #c68a1e; }
+.kte-word { display: inline-block; color: #c68a1e; animation: kte-word 4s ease-in-out infinite; }
 .kte-float { animation: kte-float 5s ease-in-out infinite; }
 .kte-delay { animation-delay: -2.5s; }
 .kte-orbit { animation: kte-spin 25s linear infinite; }
 .kte-radar { border-radius: 28%; animation: kte-pulse 3s ease-in-out infinite; }
 @keyframes kte-float { 0%,100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-14px) rotate(2deg); } }
 @keyframes kte-spin { to { transform: rotate(360deg); } }
-@keyframes kte-pulse { 50% { transform: rotate(45deg) scale(1.06); border-color: rgb(18 179 166 / .7); } }
+@keyframes kte-pulse { 50% { transform: rotate(45deg) scale(1.06); border-color: rgb(198 138 30 / .7); } }
 @keyframes kte-gradient { to { background-position: 200% center; } }
 @keyframes kte-word { 0%,100% { filter: blur(0); opacity: 1; transform: translateY(0); } 45% { filter: blur(0); opacity: 1; } 50% { filter: blur(8px); opacity: 0; transform: translateY(-6px); } 55% { filter: blur(4px); opacity: .4; transform: translateY(6px); } }
 
