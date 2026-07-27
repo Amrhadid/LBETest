@@ -67,10 +67,10 @@ export default async function DashboardPage() {
 
           {["teacher", "admin"].includes(profile?.role ?? "") && (
             <div className="mt-8">
-              <Link href="/admin/review">
+              <Link href="/admin">
                 <Button variant="outline" size="md">
                   <ClipboardCheck className="size-4" />
-                  Grade review
+                  Admin dashboard
                 </Button>
               </Link>
             </div>

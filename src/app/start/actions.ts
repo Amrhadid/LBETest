@@ -222,6 +222,17 @@ export async function submitAttempt(attemptId: string): Promise<ActionState> {
     payload: {},
   });
 
+  // Preview (reviewer) attempts never score, grade, or certify.
+  const { data: previewRow } = await supabase
+    .from("attempts")
+    .select("is_preview")
+    .eq("id", attemptId)
+    .maybeSingle();
+  if (previewRow?.is_preview) {
+    revalidatePath("/start");
+    return { message: "submitted" };
+  }
+
   // Safety net: auto-score every section server-side (idempotent) in case a
   // per-section scoring call was missed. Never blocks submission.
   await supabase.rpc("score_attempt", { p_attempt_id: attemptId });

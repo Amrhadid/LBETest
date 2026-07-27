@@ -103,12 +103,16 @@ export async function finalizeAttempt(
 
   const { data: attempt } = await svc
     .from("attempts")
-    .select("id, user_id, exam_id, status, final_score")
+    .select("id, user_id, exam_id, status, final_score, is_preview")
     .eq("id", attemptId)
     .maybeSingle();
 
   if (!attempt || !attempt.exam_id) {
     return { finalized: false, reason: "not_found" };
+  }
+  // Preview (reviewer) attempts are never scored or certified.
+  if (attempt.is_preview) {
+    return { finalized: false, reason: "already_finalized" };
   }
   if (attempt.status === "scored") {
     return { finalized: false, reason: "already_finalized" };

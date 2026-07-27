@@ -173,6 +173,7 @@ export interface Database {
           final_score: number | null;
           lbe_level: number | null;
           access_code_id: string | null;
+          is_preview: boolean;
           created_at: string;
         };
         Insert: {
@@ -188,6 +189,7 @@ export interface Database {
           final_score?: number | null;
           lbe_level?: number | null;
           access_code_id?: string | null;
+          is_preview?: boolean;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["attempts"]["Insert"]>;

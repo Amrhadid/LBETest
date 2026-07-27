@@ -1,8 +1,5 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 
-import { PageShell } from "@/components/PageShell";
-import { Section } from "@/components/Section";
 import { createClient } from "@/lib/supabase/server";
 import { RESPONSE_AUDIO_BUCKET } from "@/lib/exam/storage";
 import { answerText, isAiVoiceGraded, type Rubric } from "@/lib/exam/grading";
@@ -17,8 +14,6 @@ export const metadata: Metadata = {
   title: "Grade review",
   description: "Approve or reject AI-proposed grades.",
 };
-
-const STAFF_ROLES = new Set(["teacher", "admin"]);
 
 interface ItemRow {
   id: string;
@@ -42,25 +37,8 @@ interface ResponseRow {
 }
 
 export default async function ReviewPage() {
+  // Access is gated by the /admin layout (staff only).
   const supabase = await createClient();
-
-  // Gate: staff only. Never crash on an auth/session error.
-  let role: string | null = null;
-  try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) redirect("/login?redirectedFrom=/admin/review");
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .maybeSingle();
-    role = profile?.role ?? null;
-  } catch {
-    redirect("/login?redirectedFrom=/admin/review");
-  }
-  if (!role || !STAFF_ROLES.has(role)) redirect("/dashboard");
 
   // Responses awaiting approval (RLS already restricts these to staff).
   const { data: responses } = await supabase
@@ -140,26 +118,22 @@ export default async function ReviewPage() {
   }
 
   return (
-    <PageShell>
-      <Section>
-        <div className="mx-auto max-w-3xl">
-          <p className="eyebrow">Staff</p>
-          <h1 className="font-serif-display mt-2 text-4xl text-charcoal sm:text-5xl">
-            Grade review
-          </h1>
-          <p className="mt-3 max-w-2xl text-charcoal/70">
-            AI grades are proposals only. Approve to count a grade toward the
-            candidate&apos;s section pass/fail, final score, and certificate, or
-            reject to send it back for manual grading.
-          </p>
-          <p className="mt-1 text-sm text-charcoal/50">
-            {grades.length} awaiting approval
-          </p>
-          <div className="mt-8">
-            <ReviewList grades={grades} />
-          </div>
-        </div>
-      </Section>
-    </PageShell>
+    <div className="mx-auto max-w-3xl">
+      <p className="eyebrow">Grading</p>
+      <h1 className="font-serif-display mt-2 text-3xl text-charcoal sm:text-4xl">
+        Grade review
+      </h1>
+      <p className="mt-3 max-w-2xl text-charcoal/70">
+        AI grades are proposals only. Approve to count a grade toward the
+        candidate&apos;s section pass/fail, final score, and certificate, or
+        reject to send it back for manual grading.
+      </p>
+      <p className="mt-1 text-sm text-charcoal/50">
+        {grades.length} awaiting approval
+      </p>
+      <div className="mt-8">
+        <ReviewList grades={grades} />
+      </div>
+    </div>
   );
 }
