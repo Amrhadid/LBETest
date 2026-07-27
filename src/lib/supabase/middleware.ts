@@ -46,7 +46,8 @@ export async function updateSession(request: NextRequest) {
 
   // Gate protected routes. Redirect unauthenticated users to /login.
   const { pathname } = request.nextUrl;
-  const isProtected = pathname.startsWith("/dashboard");
+  const isProtected =
+    pathname.startsWith("/dashboard") || pathname.startsWith("/admin");
 
   if (isProtected && !user) {
     const redirectUrl = request.nextUrl.clone();

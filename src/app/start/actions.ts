@@ -226,6 +226,20 @@ export async function submitAttempt(attemptId: string): Promise<ActionState> {
   // per-section scoring call was missed. Never blocks submission.
   await supabase.rpc("score_attempt", { p_attempt_id: attemptId });
 
+  // Grade the AI-gradable open-ended items (text 4/5, voice 3/6) into
+  // pending-approval proposals. Best-effort: never fails the submission. The
+  // proposals surface in /admin/review for a teacher/admin to approve before
+  // they count. Runs with the service role inside the grader.
+  try {
+    const { gradeAttemptTextResponses } = await import(
+      "@/lib/exam/grade-attempt"
+    );
+    await gradeAttemptTextResponses(attemptId);
+  } catch {
+    // Missing keys or an API failure records grading_error flags internally;
+    // don't block the candidate's submission on grading.
+  }
+
   revalidatePath("/start");
   return { message: "submitted" };
 }

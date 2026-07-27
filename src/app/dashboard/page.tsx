@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { LogOut } from "lucide-react";
+import Link from "next/link";
+import { LogOut, ClipboardCheck } from "lucide-react";
 
 import { PageShell } from "@/components/PageShell";
 import { Section } from "@/components/Section";
@@ -63,6 +64,19 @@ export default async function DashboardPage() {
               </Button>
             </form>
           </div>
+
+          {["grader", "teacher", "admin", "super_admin"].includes(
+            profile?.role ?? "",
+          ) && (
+            <div className="mt-8">
+              <Link href="/admin/review">
+                <Button variant="outline" size="md">
+                  <ClipboardCheck className="size-4" />
+                  Grade review
+                </Button>
+              </Link>
+            </div>
+          )}
 
           <div className="mt-10 grid gap-5 sm:grid-cols-2">
             <Card>

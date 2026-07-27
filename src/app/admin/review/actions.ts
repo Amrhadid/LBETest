@@ -1,0 +1,50 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+
+import { createClient } from "@/lib/supabase/server";
+
+export type ReviewActionState = { error?: string; message?: string };
+
+/**
+ * Approve or reject a pending AI grade. Authorization is enforced in the
+ * database by approve_response_grade (staff only); this action just forwards
+ * the signed-in caller's decision. On approve, the RPC promotes the AI
+ * proposal into the authoritative score/is_correct columns; on reject it leaves
+ * them NULL for manual grading. Either way it resolves the response's
+ * review_queue rows.
+ */
+export async function decideGrade(
+  responseId: string,
+  decision: "approve" | "reject",
+): Promise<ReviewActionState> {
+  if (decision !== "approve" && decision !== "reject") {
+    return { error: "Invalid decision." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in." };
+
+  const { error } = await supabase.rpc("approve_response_grade", {
+    p_response_id: responseId,
+    p_decision: decision,
+  });
+
+  if (error) {
+    if (error.message.includes("not authorized")) {
+      return { error: "You don't have permission to approve grades." };
+    }
+    if (error.message.includes("not pending approval")) {
+      return { error: "This grade was already decided." };
+    }
+    return { error: "Could not record your decision. Please try again." };
+  }
+
+  revalidatePath("/admin/review");
+  return {
+    message: decision === "approve" ? "Approved." : "Rejected.",
+  };
+}
