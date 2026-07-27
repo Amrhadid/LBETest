@@ -1,9 +1,15 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "lbetest",
-  "main": ".open-next/worker.js",
+  // Custom entry wraps the OpenNext-generated worker and adds a `scheduled`
+  // handler for the daily exchange-rate refresh (see worker.ts).
+  "main": "worker.ts",
   "compatibility_date": "2025-03-25",
   "compatibility_flags": ["nodejs_compat"],
+  // Daily EGP→USD rate refresh at 03:00 UTC.
+  "triggers": {
+    "crons": ["0 3 * * *"]
+  },
   "assets": {
     "binding": "ASSETS",
     "directory": ".open-next/assets"
