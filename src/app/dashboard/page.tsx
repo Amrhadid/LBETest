@@ -65,9 +65,7 @@ export default async function DashboardPage() {
             </form>
           </div>
 
-          {["grader", "teacher", "admin", "super_admin"].includes(
-            profile?.role ?? "",
-          ) && (
+          {["teacher", "admin"].includes(profile?.role ?? "") && (
             <div className="mt-8">
               <Link href="/admin/review">
                 <Button variant="outline" size="md">

@@ -6,15 +6,8 @@
  * so the typed clients stay in sync with the database.
  */
 
-export type Role =
-  | "candidate"
-  | "company_admin"
-  | "company_member"
-  | "institution_admin"
-  | "teacher"
-  | "grader"
-  | "admin"
-  | "super_admin";
+/** Two staff roles — admin, teacher — plus candidate (default for test-takers). */
+export type Role = "candidate" | "teacher" | "admin";
 
 export type OrgType = "company" | "institution";
 export type ItemSourceType =
@@ -379,6 +372,10 @@ export interface Database {
       };
       approve_response_grade: {
         Args: { p_response_id: string; p_decision: string };
+        Returns: undefined;
+      };
+      grade_response_manual: {
+        Args: { p_response_id: string; p_score: number; p_is_correct: boolean };
         Returns: undefined;
       };
     };

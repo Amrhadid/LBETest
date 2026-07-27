@@ -48,3 +48,41 @@ export async function decideGrade(
     message: decision === "approve" ? "Approved." : "Rejected.",
   };
 }
+
+/**
+ * Grade a response by hand — used when AI grading failed (bad key / API error /
+ * rate limit) or when a teacher overrides. Writes the score authoritatively via
+ * grade_response_manual (staff only, enforced in the DB). The student's answer
+ * and audio are preserved independently, so this always has what it needs.
+ */
+export async function gradeManually(
+  responseId: string,
+  score: number,
+  isCorrect: boolean,
+): Promise<ReviewActionState> {
+  if (!Number.isFinite(score) || score < 0) {
+    return { error: "Enter a valid score." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in." };
+
+  const { error } = await supabase.rpc("grade_response_manual", {
+    p_response_id: responseId,
+    p_score: score,
+    p_is_correct: isCorrect,
+  });
+
+  if (error) {
+    if (error.message.includes("not authorized")) {
+      return { error: "You don't have permission to grade." };
+    }
+    return { error: "Could not save the grade. Please try again." };
+  }
+
+  revalidatePath("/admin/review");
+  return { message: "Graded." };
+}
