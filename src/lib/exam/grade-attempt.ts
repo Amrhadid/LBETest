@@ -139,6 +139,28 @@ export async function gradeAttemptTextResponses(
     flags += 1;
   };
 
+  // Record an AI-grading failure so it's VISIBLE to staff: mark the response
+  // grade_status='failed' (surfaces on /admin/review) and keep the error on
+  // ai_feedback. The student's answer + audio are untouched, so a teacher can
+  // grade it by hand. Also drop a grading_error flag into the review queue.
+  const markFailed = async (
+    r: { id: string },
+    item: ExamItem,
+    message: string,
+  ) => {
+    await svc
+      .from("responses")
+      .update({
+        grade_status: "failed",
+        ai_feedback: {
+          error: message,
+          model: GRADING_MODEL,
+        } as unknown as never,
+      })
+      .eq("id", r.id);
+    await flagResponse(r, item, "grading_error", { message });
+  };
+
   for (const r of responses ?? []) {
     if (!r.item_id) continue;
     const item = items.get(r.item_id as string);
@@ -152,9 +174,7 @@ export async function gradeAttemptTextResponses(
         const audioPath = audioPathOf(r.answer as ResponseAnswer);
         if (!audioPath) {
           errors += 1;
-          await flagResponse(r, item, "grading_error", {
-            message: "no audio recorded for spoken response",
-          });
+          await markFailed(r, item, "no audio recorded for spoken response");
           continue;
         }
         candidateText = await transcribeResponseAudio(audioPath, transcribe);
@@ -203,9 +223,11 @@ export async function gradeAttemptTextResponses(
       }
     } catch (e) {
       errors += 1;
-      await flagResponse(r, item, "grading_error", {
-        message: e instanceof Error ? e.message : "grading failed",
-      });
+      await markFailed(
+        r,
+        item,
+        e instanceof Error ? e.message : "grading failed",
+      );
     }
   }
 

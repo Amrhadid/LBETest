@@ -18,12 +18,7 @@ export const metadata: Metadata = {
   description: "Approve or reject AI-proposed grades.",
 };
 
-const STAFF_ROLES = new Set([
-  "grader",
-  "teacher",
-  "admin",
-  "super_admin",
-]);
+const STAFF_ROLES = new Set(["teacher", "admin"]);
 
 interface ItemRow {
   id: string;
@@ -43,6 +38,7 @@ interface ResponseRow {
   ai_is_correct: boolean | null;
   ai_confidence: number | null;
   ai_feedback: unknown;
+  grade_status: string | null;
 }
 
 export default async function ReviewPage() {
@@ -70,9 +66,9 @@ export default async function ReviewPage() {
   const { data: responses } = await supabase
     .from("responses")
     .select(
-      "id, attempt_id, item_id, answer, transcript, ai_score, ai_is_correct, ai_confidence, ai_feedback",
+      "id, attempt_id, item_id, answer, transcript, ai_score, ai_is_correct, ai_confidence, ai_feedback, grade_status",
     )
-    .eq("grade_status", "pending_approval")
+    .in("grade_status", ["pending_approval", "failed"])
     .order("created_at", { ascending: true });
 
   const rows = (responses ?? []) as ResponseRow[];
@@ -99,7 +95,9 @@ export default async function ReviewPage() {
     const feedbackObj = (r.ai_feedback ?? {}) as {
       feedback?: string;
       criteria?: { id: string; met: boolean; note?: string }[];
+      error?: string;
     };
+    const failed = r.grade_status === "failed";
 
     // Signed URL for voice playback (staff read policy on the private bucket).
     let audioUrl: string | null = null;
@@ -136,6 +134,8 @@ export default async function ReviewPage() {
       aiConfidence: r.ai_confidence,
       feedback: feedbackObj.feedback ?? "",
       criteria: feedbackObj.criteria ?? [],
+      failed,
+      errorMessage: failed ? (feedbackObj.error ?? "AI grading failed.") : null,
     });
   }
 

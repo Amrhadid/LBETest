@@ -1,11 +1,19 @@
 "use client";
 
 import * as React from "react";
-import { Check, X, Loader2, CircleCheck, CircleX } from "lucide-react";
+import {
+  Check,
+  X,
+  Loader2,
+  CircleCheck,
+  CircleX,
+  AlertTriangle,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { decideGrade } from "@/app/admin/review/actions";
+import { decideGrade, gradeManually } from "@/app/admin/review/actions";
 
 export interface PendingGrade {
   responseId: string;
@@ -23,6 +31,78 @@ export interface PendingGrade {
   aiConfidence: number | null;
   feedback: string;
   criteria: { id: string; met: boolean; note?: string }[];
+  failed: boolean;
+  errorMessage: string | null;
+}
+
+/** Manual scoring form shown when AI grading failed (or for an override). */
+function ManualGradeForm({ grade }: { grade: PendingGrade }) {
+  const [pending, startTransition] = React.useTransition();
+  const [score, setScore] = React.useState("");
+  const [pass, setPass] = React.useState(true);
+  const [done, setDone] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  const submit = () =>
+    startTransition(async () => {
+      setError(null);
+      const res = await gradeManually(grade.responseId, Number(score), pass);
+      if (res.error) setError(res.error);
+      else setDone(true);
+    });
+
+  if (done) {
+    return (
+      <p className="text-sm font-medium text-charcoal">
+        Graded manually — {score}/{grade.maxScore}, {pass ? "pass" : "fail"}.
+      </p>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap items-end gap-3">
+      <label className="text-sm">
+        <span className="mb-1 block text-charcoal/70">Score</span>
+        <Input
+          type="number"
+          min={0}
+          max={grade.maxScore}
+          step="0.5"
+          value={score}
+          onChange={(e) => setScore(e.target.value)}
+          className="w-24"
+          placeholder={`0–${grade.maxScore}`}
+        />
+      </label>
+      <div className="flex overflow-hidden rounded-lg border border-border">
+        <button
+          type="button"
+          onClick={() => setPass(true)}
+          className={
+            "px-3 py-2 text-sm " +
+            (pass ? "bg-emerald-600 text-white" : "text-charcoal/70")
+          }
+        >
+          Pass
+        </button>
+        <button
+          type="button"
+          onClick={() => setPass(false)}
+          className={
+            "px-3 py-2 text-sm " +
+            (!pass ? "bg-rose-600 text-white" : "text-charcoal/70")
+          }
+        >
+          Fail
+        </button>
+      </div>
+      <Button type="button" size="md" onClick={submit} disabled={pending || score === ""}>
+        {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+        Save grade
+      </Button>
+      {error && <span className="text-sm text-rose-700">{error}</span>}
+    </div>
+  );
 }
 
 function ProposalRow({ grade }: { grade: PendingGrade }) {
@@ -83,6 +163,22 @@ function ProposalRow({ grade }: { grade: PendingGrade }) {
           )}
         </div>
 
+        {/* Failed AI grading → manual grade. Answer + audio above stay usable. */}
+        {grade.failed ? (
+          <div className="rounded-xl border border-amber-300 bg-amber-50 p-4">
+            <p className="flex items-center gap-2 text-sm font-semibold text-amber-800">
+              <AlertTriangle className="h-4 w-4" />
+              AI grading failed — grade this by hand
+            </p>
+            {grade.errorMessage && (
+              <p className="mt-1 text-xs text-amber-700">{grade.errorMessage}</p>
+            )}
+            <div className="mt-3">
+              <ManualGradeForm grade={grade} />
+            </div>
+          </div>
+        ) : (
+          <>
         {/* AI proposal */}
         <div className="rounded-xl border border-border bg-ivory/60 p-4">
           <div className="flex flex-wrap items-center gap-3">
@@ -182,6 +278,8 @@ function ProposalRow({ grade }: { grade: PendingGrade }) {
               <span className="text-sm text-rose-700">{result.error}</span>
             )}
           </div>
+        )}
+          </>
         )}
       </CardContent>
     </Card>
