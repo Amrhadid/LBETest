@@ -29,7 +29,7 @@ export const routes = {
 export type NavItem = { label: string; href: string };
 
 export const primaryNav: NavItem[] = [
-  { label: "Know the Test", href: "#how-it-works" },
+  { label: "Know the Test", href: "/know-the-test" },
   { label: "LBE Training", href: routes.training },
   { label: "Verify your Certificate", href: "#verify" },
 ];
@@ -71,7 +71,7 @@ export const footerNav: {
   {
     title: "Test",
     items: [
-      { label: "Know the Test", href: "#how-it-works" },
+      { label: "Know the Test", href: "/know-the-test" },
       { label: "Score System", href: "#score-system" },
       // TODO(route): dedicated LBE Training page pending.
       { label: "LBE Training", href: routes.training, todo: true },
