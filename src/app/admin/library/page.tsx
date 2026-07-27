@@ -16,29 +16,58 @@ const QT_LABEL: Record<number, string> = {
   4: "Name term", 5: "Write definition", 6: "Spoken about source",
 };
 
-export default async function AdminLibraryPage() {
+export default async function AdminLibraryPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ exam?: string }>;
+}) {
   await requireAdmin();
+  const { exam } = await searchParams;
+  const examId = exam || ACTIVE_EXAM_ID;
   const svc = createServiceRoleClient();
-  const { data: items } = await svc
-    .from("items")
-    .select("id, lbe_level, question_type, source_type, prompt, active")
-    .eq("exam_id", ACTIVE_EXAM_ID)
-    .order("lbe_level", { ascending: true })
-    .order("question_type", { ascending: true })
-    .order("id", { ascending: true });
+
+  const [{ data: exams }, { data: items }] = await Promise.all([
+    svc.from("exams").select("id, title, code").order("created_at", { ascending: true }),
+    svc
+      .from("items")
+      .select("id, lbe_level, question_type, source_type, prompt, active")
+      .eq("exam_id", examId)
+      .order("lbe_level", { ascending: true })
+      .order("question_type", { ascending: true })
+      .order("id", { ascending: true }),
+  ]);
 
   return (
     <div>
       <AdminHeader
         eyebrow="Admin"
         title="Exam Library"
-        description="The question/item bank for the active exam. Create, edit, activate or remove items."
+        description="The question/item bank. Create, edit, activate or remove items."
         actions={
-          <Link href="/admin/library/new">
+          <Link href={`/admin/library/new?exam=${examId}`}>
             <Button size="sm"><Plus className="size-4" /> New item</Button>
           </Link>
         }
       />
+
+      {(exams ?? []).length > 1 && (
+        <div className="mb-4 flex flex-wrap gap-2">
+          {(exams ?? []).map((e) => (
+            <Link
+              key={e.id}
+              href={`/admin/library?exam=${e.id}`}
+              className={
+                "rounded-full border px-3 py-1 text-xs " +
+                (e.id === examId
+                  ? "border-gold bg-gold/15 text-charcoal"
+                  : "border-gold/25 text-muted-foreground hover:bg-gold/8")
+              }
+            >
+              {e.title ?? e.code ?? e.id.slice(0, 8)}
+            </Link>
+          ))}
+        </div>
+      )}
 
       <p className="mb-3 text-sm text-muted-foreground">{(items ?? []).length} items</p>
 
@@ -63,11 +92,11 @@ export default async function AdminLibraryPage() {
                   {it.active ? "Yes" : "No"}
                 </span>
               </td>
-              <td className="p-3"><ItemRowActions id={it.id} active={it.active} /></td>
+              <td className="p-3"><ItemRowActions id={it.id} active={it.active} examId={examId} /></td>
             </tr>
           ))}
           {(items ?? []).length === 0 && (
-            <tr><td colSpan={5} className="p-6 text-center text-muted-foreground">No items yet.</td></tr>
+            <tr><td colSpan={5} className="p-6 text-center text-muted-foreground">No items yet for this exam.</td></tr>
           )}
         </tbody>
       </TableWrap>

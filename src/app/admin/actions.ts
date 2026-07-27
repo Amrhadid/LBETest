@@ -46,6 +46,30 @@ export async function startPreviewAttempt(): Promise<void> {
 // Exams
 // ---------------------------------------------------------------------------
 
+export async function createExam(fields: {
+  code?: string;
+  title?: string;
+  version?: number;
+  status?: string;
+}): Promise<AdminActionState & { id?: string }> {
+  await requireAdmin();
+  const svc = createServiceRoleClient();
+  const { data, error } = await svc
+    .from("exams")
+    .insert({
+      code: fields.code || null,
+      title: fields.title || "Untitled exam",
+      version: fields.version ?? 1,
+      status: fields.status || "draft",
+      config: {} as unknown as never,
+    })
+    .select("id")
+    .maybeSingle();
+  if (error || !data) return { error: "Could not create the exam." };
+  revalidatePath("/admin/exams");
+  return { message: "Exam created.", id: data.id };
+}
+
 export async function updateExam(
   id: string,
   fields: { title?: string; version?: number; status?: string },
@@ -92,6 +116,7 @@ export interface ItemInput {
   question_type: number;
   source_type: string | null;
   prompt: string | null;
+  media_url: string | null;
   options: unknown;
   answer_key: unknown;
   rubric: unknown;
@@ -107,6 +132,7 @@ export async function saveItem(input: ItemInput): Promise<AdminActionState> {
     question_type: input.question_type,
     source_type: (input.source_type || null) as never,
     prompt: input.prompt,
+    media_url: input.media_url,
     options: (input.options ?? null) as never,
     answer_key: (input.answer_key ?? null) as never,
     rubric: (input.rubric ?? null) as never,
