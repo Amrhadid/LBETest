@@ -3,8 +3,23 @@
 import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
+import { finalizeAttempt } from "@/lib/certificates/finalize";
 
 export type ReviewActionState = { error?: string; message?: string };
+
+/**
+ * After a grading decision, try to finalize the attempt. No-ops unless the
+ * attempt is fully resolved (no pending/failed grades). Best-effort — a
+ * certificate hiccup must never surface as a grading error.
+ */
+async function tryFinalize(attemptId: string | undefined) {
+  if (!attemptId) return;
+  try {
+    await finalizeAttempt(attemptId);
+  } catch {
+    // Certificate generation is best-effort; the grade is already recorded.
+  }
+}
 
 /**
  * Approve or reject a pending AI grade. Authorization is enforced in the
@@ -17,6 +32,7 @@ export type ReviewActionState = { error?: string; message?: string };
 export async function decideGrade(
   responseId: string,
   decision: "approve" | "reject",
+  attemptId?: string,
 ): Promise<ReviewActionState> {
   if (decision !== "approve" && decision !== "reject") {
     return { error: "Invalid decision." };
@@ -43,6 +59,7 @@ export async function decideGrade(
     return { error: "Could not record your decision. Please try again." };
   }
 
+  await tryFinalize(attemptId);
   revalidatePath("/admin/review");
   return {
     message: decision === "approve" ? "Approved." : "Rejected.",
@@ -59,6 +76,7 @@ export async function gradeManually(
   responseId: string,
   score: number,
   isCorrect: boolean,
+  attemptId?: string,
 ): Promise<ReviewActionState> {
   if (!Number.isFinite(score) || score < 0) {
     return { error: "Enter a valid score." };
@@ -83,6 +101,7 @@ export async function gradeManually(
     return { error: "Could not save the grade. Please try again." };
   }
 
+  await tryFinalize(attemptId);
   revalidatePath("/admin/review");
   return { message: "Graded." };
 }

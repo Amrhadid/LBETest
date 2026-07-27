@@ -46,7 +46,12 @@ function ManualGradeForm({ grade }: { grade: PendingGrade }) {
   const submit = () =>
     startTransition(async () => {
       setError(null);
-      const res = await gradeManually(grade.responseId, Number(score), pass);
+      const res = await gradeManually(
+        grade.responseId,
+        Number(score),
+        pass,
+        grade.attemptId,
+      );
       if (res.error) setError(res.error);
       else setDone(true);
     });
@@ -113,7 +118,7 @@ function ProposalRow({ grade }: { grade: PendingGrade }) {
 
   const decide = (decision: "approve" | "reject") =>
     startTransition(async () => {
-      const res = await decideGrade(grade.responseId, decision);
+      const res = await decideGrade(grade.responseId, decision, grade.attemptId);
       setResult({ decision, error: res.error });
     });
 
