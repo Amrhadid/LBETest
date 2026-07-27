@@ -122,6 +122,7 @@ export interface Database {
           answer_key: Json | null;
           rubric: Json | null;
           active: boolean;
+          exposure_count: number;
           created_at: string;
         };
         Insert: {
@@ -136,6 +137,7 @@ export interface Database {
           answer_key?: Json | null;
           rubric?: Json | null;
           active?: boolean;
+          exposure_count?: number;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["items"]["Insert"]>;
@@ -378,6 +380,10 @@ export interface Database {
       };
       grade_response_manual: {
         Args: { p_response_id: string; p_score: number; p_is_correct: boolean };
+        Returns: undefined;
+      };
+      bump_item_exposure: {
+        Args: { p_exam_id: string };
         Returns: undefined;
       };
     };

@@ -25,7 +25,7 @@ export function QuestionRenderer({
   disabled?: boolean;
   revealResult?: boolean;
   uploader?: (blob: Blob) => Promise<string>;
-  /** Exam lockdown: block copy/paste in free-text (type 5). */
+  /** Exam lockdown: block copy/paste in the written-response inputs (types 4 & 5). */
   disableClipboard?: boolean;
 }) {
   switch (item.question_type) {
@@ -48,6 +48,7 @@ export function QuestionRenderer({
           onChange={onChange}
           disabled={disabled}
           revealResult={revealResult}
+          disableClipboard={disableClipboard}
         />
       );
     case QuestionType.WriteTheDefinition:

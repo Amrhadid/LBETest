@@ -30,7 +30,7 @@ export default async function AdminLibraryPage({
     svc.from("exams").select("id, title, code").order("created_at", { ascending: true }),
     svc
       .from("items")
-      .select("id, lbe_level, question_type, source_type, prompt, active")
+      .select("id, lbe_level, question_type, source_type, prompt, active, exposure_count")
       .eq("exam_id", examId)
       .order("lbe_level", { ascending: true })
       .order("question_type", { ascending: true })
@@ -78,6 +78,7 @@ export default async function AdminLibraryPage({
             <th className="p-3">Type</th>
             <th className="p-3">Prompt</th>
             <th className="p-3">Active</th>
+            <th className="p-3">Exposure</th>
             <th className="p-3 text-right">Actions</th>
           </tr>
         </thead>
@@ -92,11 +93,12 @@ export default async function AdminLibraryPage({
                   {it.active ? "Yes" : "No"}
                 </span>
               </td>
+              <td className="p-3 tabular-nums text-muted-foreground">{it.exposure_count ?? 0}</td>
               <td className="p-3"><ItemRowActions id={it.id} active={it.active} examId={examId} /></td>
             </tr>
           ))}
           {(items ?? []).length === 0 && (
-            <tr><td colSpan={5} className="p-6 text-center text-muted-foreground">No items yet for this exam.</td></tr>
+            <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">No items yet for this exam.</td></tr>
           )}
         </tbody>
       </TableWrap>
