@@ -233,9 +233,10 @@ export function ExamRunner({
                 <span className="font-serif-display text-2xl text-gold">
                   {idx + 1}
                 </span>
-                {item.prompt && <p className="text-charcoal">{item.prompt}</p>}
               </div>
 
+              {/* The prompt (passage + question) renders once here, in a
+                  labelled card; for audio items this is the listening player. */}
               <SourceStimulus item={item} />
 
               <QuestionRenderer
