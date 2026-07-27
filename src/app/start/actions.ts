@@ -102,6 +102,18 @@ export async function startAttempt(): Promise<ActionState> {
 
   if (error) return { error: "Could not start the exam. Please try again." };
 
+  // Item exposure tracking: this exam's active items are now served to a real
+  // attempt. Best-effort, via the service role (RPC is service-role-only so
+  // candidates can't skew counts). Preview attempts never call this.
+  try {
+    const { createServiceRoleClient } = await import("@/lib/supabase/server");
+    await createServiceRoleClient().rpc("bump_item_exposure", {
+      p_exam_id: ACTIVE_EXAM_ID,
+    });
+  } catch {
+    // Exposure tracking must never block starting the exam.
+  }
+
   revalidatePath("/start");
   return { message: "Started." };
 }

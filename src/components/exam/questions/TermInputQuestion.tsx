@@ -1,5 +1,7 @@
 "use client";
 
+import type * as React from "react";
+
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import type { ExamItem, ResponseAnswer } from "@/lib/exam/types";
@@ -15,15 +17,21 @@ export function TermInputQuestion({
   onChange,
   disabled,
   revealResult,
+  disableClipboard,
 }: {
   item: ExamItem;
   value: ResponseAnswer;
   onChange: (answer: ResponseAnswer) => void;
   disabled?: boolean;
   revealResult?: boolean;
+  /** Exam lockdown: block copy/paste/cut so the answer is typed, not pasted. */
+  disableClipboard?: boolean;
 }) {
   const text = value && "text" in value ? value.text : "";
   const result = revealResult && text ? scoreResponse(item, value) : null;
+  const blockClipboard = disableClipboard
+    ? (e: React.ClipboardEvent<HTMLInputElement>) => e.preventDefault()
+    : undefined;
 
   const accepted =
     item.answer_key && typeof item.answer_key === "object" && "accept" in item.answer_key
@@ -45,6 +53,9 @@ export function TermInputQuestion({
         autoComplete="off"
         placeholder="Your answer"
         onChange={(e) => onChange({ text: e.target.value })}
+        onCopy={blockClipboard}
+        onCut={blockClipboard}
+        onPaste={blockClipboard}
         className="max-w-sm"
       />
       {result && (
