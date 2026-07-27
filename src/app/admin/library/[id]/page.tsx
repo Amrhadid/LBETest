@@ -11,17 +11,20 @@ export const metadata: Metadata = { title: "Admin — Edit item" };
 
 export default async function ItemEditorPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ exam?: string }>;
 }) {
   await requireAdmin();
   const { id } = await params;
+  const { exam } = await searchParams;
 
   if (id === "new") {
     return (
       <div>
         <AdminHeader eyebrow="Exam Library" title="New item" />
-        <ItemForm examId={ACTIVE_EXAM_ID} />
+        <ItemForm examId={exam || ACTIVE_EXAM_ID} />
       </div>
     );
   }
@@ -29,7 +32,7 @@ export default async function ItemEditorPage({
   const svc = createServiceRoleClient();
   const { data: item } = await svc
     .from("items")
-    .select("id, exam_id, lbe_level, question_type, source_type, prompt, options, answer_key, rubric, active")
+    .select("id, exam_id, lbe_level, question_type, source_type, prompt, media_url, options, answer_key, rubric, active")
     .eq("id", id)
     .maybeSingle();
 

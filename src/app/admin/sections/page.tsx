@@ -8,13 +8,19 @@ import { SectionsEditor } from "@/app/admin/sections/SectionsEditor";
 
 export const metadata: Metadata = { title: "Admin — Sections" };
 
-export default async function AdminSectionsPage() {
+export default async function AdminSectionsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ exam?: string }>;
+}) {
   await requireAdmin();
+  const { exam: examParam } = await searchParams;
+  const examId = examParam || ACTIVE_EXAM_ID;
   const svc = createServiceRoleClient();
   const { data: exam } = await svc
     .from("exams")
     .select("id, title, config")
-    .eq("id", ACTIVE_EXAM_ID)
+    .eq("id", examId)
     .maybeSingle();
 
   const cfg = (exam?.config ?? {}) as {
@@ -31,7 +37,7 @@ export default async function AdminSectionsPage() {
         description={`Time limits and weights for the five LBE sections of ${exam?.title ?? "the active exam"}.`}
       />
       <SectionsEditor
-        examId={ACTIVE_EXAM_ID}
+        examId={examId}
         defaultSeconds={parsed.section_seconds}
         sections={cfg.sections ?? {}}
       />
