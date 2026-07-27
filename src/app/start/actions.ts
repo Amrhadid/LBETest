@@ -240,6 +240,16 @@ export async function submitAttempt(attemptId: string): Promise<ActionState> {
     // don't block the candidate's submission on grading.
   }
 
+  // Finalize now if nothing needs human approval (all-auto attempt): computes
+  // the result, and issues a certificate when Section 1+ is passed. No-ops when
+  // AI grades are pending approval — the review action finalizes then.
+  try {
+    const { finalizeAttempt } = await import("@/lib/certificates/finalize");
+    await finalizeAttempt(attemptId);
+  } catch {
+    // Best-effort; certificate generation never blocks submission.
+  }
+
   revalidatePath("/start");
   return { message: "submitted" };
 }
