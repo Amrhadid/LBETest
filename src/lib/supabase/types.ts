@@ -386,6 +386,10 @@ export interface Database {
         Args: { p_exam_id: string };
         Returns: undefined;
       };
+      submit_attempt: {
+        Args: { p_attempt_id: string };
+        Returns: undefined;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
