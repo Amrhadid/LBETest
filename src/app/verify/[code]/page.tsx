@@ -12,16 +12,17 @@ export const metadata: Metadata = {
     "Confirm that a Locrativ Business English (LBE) certificate is authentic and see the LBE level it certifies.",
 };
 
-export default async function VerifyPage({
-  searchParams,
+// Direct link the certificate QR encodes: /verify/<cert_code>.
+export default async function VerifyByCodePage({
+  params,
 }: {
-  searchParams: Promise<{ code?: string }>;
+  params: Promise<{ code: string }>;
 }) {
-  const { code } = await searchParams;
+  const { code } = await params;
   return (
     <PageShell>
       <Section>
-        <VerifyView code={code} />
+        <VerifyView code={decodeURIComponent(code)} />
       </Section>
     </PageShell>
   );

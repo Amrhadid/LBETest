@@ -20,8 +20,6 @@
  * certificates(attempt_id). Runs with the service role (bypasses RLS).
  */
 
-import { getCloudflareContext } from "@opennextjs/cloudflare";
-
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { siteConfig } from "@/lib/site";
 import {
@@ -31,6 +29,10 @@ import {
   type SectionTally,
 } from "@/lib/certificates/eligibility";
 import { generateCertificatePdf } from "@/lib/certificates/pdf";
+import {
+  certificateCanonical,
+  computeIssueHash,
+} from "@/lib/certificates/integrity";
 
 export const CERTIFICATES_BUCKET = "certificates";
 const CERT_VALIDITY_YEARS = 2;
@@ -46,46 +48,6 @@ export interface FinalizeResult {
 /** Absolute URL a certificate QR / verify link points at (step 12 route). */
 export function verifyUrlFor(certCode: string): string {
   return `https://${siteConfig.domain}/verify/${certCode}`;
-}
-
-function getCertSigningSecret(): string | undefined {
-  try {
-    const env = getCloudflareContext().env as unknown as Record<
-      string,
-      string | undefined
-    >;
-    if (env?.CERT_SIGNING_SECRET) return env.CERT_SIGNING_SECRET;
-  } catch {
-    // Not in a Cloudflare request context — fall back.
-  }
-  return process.env.CERT_SIGNING_SECRET;
-}
-
-function toHex(buf: ArrayBuffer): string {
-  return [...new Uint8Array(buf)]
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-/**
- * Integrity hash over the certificate's identifying fields. HMAC-SHA256 with
- * CERT_SIGNING_SECRET when set (unforgeable); otherwise a plain SHA-256 digest
- * (tamper-evident, but recomputable — set the secret to make it unforgeable).
- */
-async function computeIssueHash(canonical: string): Promise<string> {
-  const secret = getCertSigningSecret();
-  const enc = new TextEncoder();
-  if (secret) {
-    const key = await crypto.subtle.importKey(
-      "raw",
-      enc.encode(secret),
-      { name: "HMAC", hash: "SHA-256" },
-      false,
-      ["sign"],
-    );
-    return toHex(await crypto.subtle.sign("HMAC", key, enc.encode(canonical)));
-  }
-  return toHex(await crypto.subtle.digest("SHA-256", enc.encode(canonical)));
 }
 
 /** Unique-ish public code: LBE-<level>-<8 base32 chars>. */
@@ -209,14 +171,14 @@ export async function finalizeAttempt(
   let certCode = "";
   for (let i = 0; i < 5 && !certId; i++) {
     certCode = makeCertCode(level);
-    const canonical = [
+    const canonical = certificateCanonical({
       certCode,
-      attempt.user_id,
+      userId: attempt.user_id,
       attemptId,
       level,
       score,
-      issuedAt.toISOString(),
-    ].join("|");
+      issuedAtIso: issuedAt.toISOString(),
+    });
     const issueHash = await computeIssueHash(canonical);
 
     const { data: inserted, error } = await svc
