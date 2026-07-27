@@ -220,11 +220,12 @@ export async function submitAttempt(attemptId: string): Promise<ActionState> {
     return { error: "This attempt is not active." };
   }
 
-  const { error } = await supabase
-    .from("attempts")
-    .update({ status: "submitted", submitted_at: new Date().toISOString() })
-    .eq("id", attemptId)
-    .eq("user_id", user.id);
+  // Status transitions go through a SECURITY DEFINER RPC (in_progress →
+  // submitted only). Candidates have no direct UPDATE grant on attempts.status,
+  // so they can't set their attempt to 'scored'/anything via a raw API call.
+  const { error } = await supabase.rpc("submit_attempt", {
+    p_attempt_id: attemptId,
+  });
 
   if (error) return { error: "Could not submit the exam." };
 
