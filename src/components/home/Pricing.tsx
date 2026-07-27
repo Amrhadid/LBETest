@@ -5,41 +5,46 @@ import { Reveal } from "@/components/Reveal";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { pricingPlans, contact } from "@/lib/site";
+import { getLatestUsdRate } from "@/lib/pricing/rate.server";
+import { usdFromEgp } from "@/lib/pricing/exchange-rate";
 
-const plans = [
-  {
-    title: "Test Only",
-    price: pricingPlans.testOnly.priceUsd,
-    note: pricingPlans.testOnly.priceEgp,
-    features: [
-      "Full online LBE test",
-      "LBE score and qualification",
-      "Skill breakdown",
-      "Verifiable digital certificate",
-    ],
-    cta: "Buy Test Only",
-    href: pricingPlans.testOnly.href,
-    featured: false,
-    badge: null as string | null,
-  },
-  {
-    title: "Test + Training",
-    price: pricingPlans.testTraining.priceUsd,
-    note: pricingPlans.testTraining.priceEgp,
-    features: [
-      "Everything in Test Only",
-      "Complete LBE preparation training",
-      "Workplace language practice",
-      "Test-taking strategies",
-    ],
-    cta: "Buy Test + Training",
-    href: pricingPlans.testTraining.href,
-    featured: true,
-    badge: "Best value",
-  },
-];
+export async function Pricing() {
+  // Read the cached daily rate server-side (no live FX call on page load).
+  const rate = await getLatestUsdRate();
 
-export function Pricing() {
+  const plans = [
+    {
+      title: "Test Only",
+      priceEgp: pricingPlans.testOnly.priceEgp,
+      usd: usdFromEgp(pricingPlans.testOnly.egpAmount, rate),
+      features: [
+        "Full online LBE test",
+        "LBE score and qualification",
+        "Skill breakdown",
+        "Verifiable digital certificate",
+      ],
+      cta: "Buy Test Only",
+      href: pricingPlans.testOnly.href,
+      featured: false,
+      badge: null as string | null,
+    },
+    {
+      title: "Test + Training",
+      priceEgp: pricingPlans.testTraining.priceEgp,
+      usd: usdFromEgp(pricingPlans.testTraining.egpAmount, rate),
+      features: [
+        "Everything in Test Only",
+        "Complete LBE preparation training",
+        "Workplace language practice",
+        "Test-taking strategies",
+      ],
+      cta: "Buy Test + Training",
+      href: pricingPlans.testTraining.href,
+      featured: true,
+      badge: "Best value",
+    },
+  ];
+
   return (
     <Section id="pricing" surface="white">
       <SectionHeading
@@ -67,12 +72,14 @@ export function Pricing() {
             )}
             <h3 className="font-serif-display text-2xl text-charcoal">{plan.title}</h3>
             <div className="mt-4 flex items-baseline gap-2">
-              <span className="font-serif-display text-5xl text-charcoal tabular-nums">
-                {plan.price}
+              <span className="font-serif-display text-4xl text-charcoal tabular-nums sm:text-5xl">
+                {plan.priceEgp}
               </span>
-              <span className="text-sm text-muted-foreground">
-                ≈ {plan.note}
-              </span>
+              {plan.usd != null && (
+                <span className="text-sm text-muted-foreground">
+                  (≈ ${plan.usd} USD)
+                </span>
+              )}
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
               One-time payment

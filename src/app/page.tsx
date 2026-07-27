@@ -9,6 +9,10 @@ import { Faq } from "@/components/home/Faq";
 import { FinalCta } from "@/components/home/FinalCta";
 import { Footer } from "@/components/home/Footer";
 
+// Revalidate hourly so the cached EGP→USD rate in the Pricing section refreshes
+// without making the marketing homepage fully dynamic.
+export const revalidate = 3600;
+
 export default function HomePage() {
   return (
     <div className="flex min-h-dvh flex-col">

@@ -35,21 +35,22 @@ export const primaryNav: NavItem[] = [
 ];
 
 /**
- * Pricing plans with live Paymob checkout links. Prices are shown in USD with
- * the EGP equivalent charged by Paymob. Manual payment is also available via
- * WhatsApp (see `contact.whatsapp`).
+ * Pricing plans with live Paymob checkout links. EGP is the FIXED source of
+ * truth (Paymob charges in EGP); the USD equivalent is derived from the cached
+ * daily exchange rate (see src/lib/pricing). `egpAmount` is the canonical
+ * number; `priceEgp` is its display string.
  */
 export const pricingPlans = {
   testOnly: {
     slug: "test-only",
-    priceUsd: "$86",
-    priceEgp: "4,400 EGP",
+    egpAmount: 4400,
+    priceEgp: "EGP 4,400",
     href: "https://paymob.link/RDOaq",
   },
   testTraining: {
     slug: "test-training",
-    priceUsd: "$194",
-    priceEgp: "10,000 EGP",
+    egpAmount: 10000,
+    priceEgp: "EGP 10,000",
     href: "https://paymob.link/avbCS",
   },
 } as const;
