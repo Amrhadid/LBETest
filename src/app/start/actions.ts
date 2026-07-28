@@ -3,8 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { createClient } from "@/lib/supabase/server";
-import { ACTIVE_EXAM_ID } from "@/lib/exam/config";
+import { createClient, createServiceRoleClient } from "@/lib/supabase/server";
+import { ACTIVE_EXAM_ID, parseExamConfig } from "@/lib/exam/config";
+import { getSectionAnchors } from "@/lib/exam/timing.server";
+import { isSectionExpired } from "@/lib/exam/timing";
 import type { ResponseAnswer } from "@/lib/exam/types";
 
 export type ActionState = { error?: string; message?: string };
@@ -156,6 +158,21 @@ export async function saveResponse(
     return { error: "This attempt is not active." };
   }
 
+  // Server-side time enforcement: reject saves once the item's section has run
+  // out (computed from the server-recorded section_start anchor, not the client
+  // timer). This is what stops a returning candidate from answering past time.
+  const svc = createServiceRoleClient();
+  const [{ data: item }, { data: examRow }, anchors] = await Promise.all([
+    svc.from("items").select("lbe_level").eq("id", itemId).maybeSingle(),
+    svc.from("exams").select("config").eq("id", ACTIVE_EXAM_ID).maybeSingle(),
+    getSectionAnchors(svc, attemptId),
+  ]);
+  const sectionSeconds = parseExamConfig(examRow?.config).section_seconds;
+  const anchor = item ? anchors.get(item.lbe_level as number) : undefined;
+  if (isSectionExpired(anchor, sectionSeconds, Date.now())) {
+    return { error: "Time is up for this section." };
+  }
+
   const { error } = await supabase.from("responses").upsert(
     {
       attempt_id: attemptId,
@@ -168,6 +185,40 @@ export async function saveResponse(
 
   if (error) return { error: "Could not save your answer." };
   return { message: "saved" };
+}
+
+/**
+ * Record a section's start ONCE (server timestamp), idempotently. The runner
+ * calls this when a section opens; the earliest recorded start is the immutable
+ * time anchor, so reloading the page can't reset the clock. Replaces the old
+ * client-logged section_start.
+ */
+export async function beginSection(
+  attemptId: string,
+  lbeLevel: number,
+): Promise<void> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+  if (!(await assertOwnedInProgress(supabase, attemptId, user.id))) return;
+
+  const { data: existing } = await supabase
+    .from("attempt_events")
+    .select("id")
+    .eq("attempt_id", attemptId)
+    .eq("type", "section_start")
+    .contains("payload", { section: lbeLevel })
+    .limit(1)
+    .maybeSingle();
+  if (existing) return; // anchor already set — keep it
+
+  await supabase.from("attempt_events").insert({
+    attempt_id: attemptId,
+    type: "section_start",
+    payload: { section: lbeLevel } as unknown as never,
+  });
 }
 
 /** Append an attempt_events row (telemetry / lockdown log). */

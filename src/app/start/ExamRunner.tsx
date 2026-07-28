@@ -12,7 +12,7 @@ import { SectionBadge } from "@/components/exam/SectionBadge";
 import { SourceStimulus } from "@/components/exam/SourceStimulus";
 import { QuestionRenderer } from "@/components/exam/QuestionRenderer";
 import { SubmittedScreen } from "@/components/exam/SubmittedScreen";
-import { saveResponse, logEvent, submitAttempt, scoreSection } from "@/app/start/actions";
+import { saveResponse, logEvent, submitAttempt, scoreSection, beginSection } from "@/app/start/actions";
 
 export type RunnerSection = { level: LbeLevel; items: ExamItem[] };
 
@@ -25,6 +25,7 @@ export function ExamRunner({
   attemptId,
   userId,
   sectionSeconds,
+  initialTimeLeft,
   sections,
   initialResponses,
   initialSectionIndex,
@@ -33,6 +34,8 @@ export function ExamRunner({
   attemptId: string;
   userId: string;
   sectionSeconds: number;
+  /** Server-computed seconds left in the current section on load. */
+  initialTimeLeft: number;
   sections: RunnerSection[];
   initialResponses: Record<string, ResponseAnswer>;
   initialSectionIndex: number;
@@ -44,10 +47,14 @@ export function ExamRunner({
   const [answers, setAnswers] = React.useState<Record<string, ResponseAnswer>>(
     initialResponses,
   );
-  const [timeLeft, setTimeLeft] = React.useState(sectionSeconds);
+  // Timer starts from the SERVER-computed remaining time, not a fresh full
+  // countdown — a resumed section reflects real elapsed time.
+  const [timeLeft, setTimeLeft] = React.useState(initialTimeLeft);
   const [submitting, setSubmitting] = React.useState(false);
   const [done, setDone] = React.useState(false);
   const [isFullscreen, setIsFullscreen] = React.useState(false);
+  // True once the first section has mounted (so later sections reset to full).
+  const firstMountRef = React.useRef(true);
 
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const supabase = React.useMemo(() => createClient(config), [config]);
@@ -67,34 +74,64 @@ export function ExamRunner({
 
   React.useEffect(() => {
     requestFullscreen();
+    // Lockdown telemetry is delivered by sendBeacon — reliable while the tab is
+    // backgrounding (a Server Action fetch here gets dropped by the browser).
+    const beacon = (type: string, payload: Record<string, unknown>) => {
+      try {
+        navigator.sendBeacon?.(
+          "/api/attempt-event",
+          new Blob([JSON.stringify({ attemptId, type, payload })], {
+            type: "application/json",
+          }),
+        );
+      } catch {
+        /* telemetry is best-effort */
+      }
+    };
+
     const onFsChange = () => {
       const fs = !!document.fullscreenElement;
       setIsFullscreen(fs);
-      if (!fs) void logEvent(attemptId, "fullscreen_exit");
+      if (!fs) beacon("fullscreen_exit", {});
     };
     const onVisibility = () => {
-      if (document.hidden) void logEvent(attemptId, "tab_blur", { reason: "visibility" });
+      if (document.hidden) beacon("tab_blur", { reason: "visibility" });
     };
-    const onBlur = () => void logEvent(attemptId, "tab_blur", { reason: "window_blur" });
+    const onBlur = () => beacon("tab_blur", { reason: "window_blur" });
+    const onPageHide = () => beacon("pagehide", {});
 
     document.addEventListener("fullscreenchange", onFsChange);
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("blur", onBlur);
+    window.addEventListener("pagehide", onPageHide);
     return () => {
       document.removeEventListener("fullscreenchange", onFsChange);
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("blur", onBlur);
+      window.removeEventListener("pagehide", onPageHide);
     };
   }, [attemptId, requestFullscreen]);
 
-  // ---- Per-section lifecycle: log start, reset timer ----------------------
+  // ---- Per-section lifecycle: record start (server anchor), set timer ------
   React.useEffect(() => {
     if (done) return;
-    void logEvent(attemptId, "section_start", { section: section.level });
-    setTimeLeft(sectionSeconds);
+    // Idempotent server-recorded anchor (reloading can't reset the clock).
+    void beginSection(attemptId, section.level);
+    // Keep the server-computed remaining time on the FIRST mount; a genuinely
+    // new section (advancing) starts from the full limit.
+    if (firstMountRef.current) firstMountRef.current = false;
+    else setTimeLeft(sectionSeconds);
     advancingRef.current = false;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sectionIndex]);
+
+  // ---- Auto-submit a section whose time is already up (e.g. on return) -----
+  React.useEffect(() => {
+    if (!done && timeLeft <= 0 && !advancingRef.current) {
+      void handleAdvance(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeLeft, done]);
 
   // ---- Timer --------------------------------------------------------------
   React.useEffect(() => {
@@ -243,7 +280,7 @@ export function ExamRunner({
                 item={item}
                 value={answers[item.id] ?? null}
                 onChange={(a) => handleAnswer(item, a)}
-                disabled={submitting}
+                disabled={submitting || timeLeft <= 0}
                 revealResult={false}
                 disableClipboard
                 uploader={

@@ -7,6 +7,9 @@ import { SubmittedScreen } from "@/components/exam/SubmittedScreen";
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server";
 import { getServerSupabaseEnv } from "@/lib/supabase/env";
 import { ACTIVE_EXAM_ID, parseExamConfig } from "@/lib/exam/config";
+import { getSectionAnchors } from "@/lib/exam/timing.server";
+import { remainingSeconds, attemptExpired } from "@/lib/exam/timing";
+import { submitAttempt } from "@/app/start/actions";
 import {
   type ExamItem,
   type ItemOption,
@@ -97,7 +100,7 @@ export default async function StartPage() {
   // Latest attempts for this user + exam (RLS: own rows only).
   const { data: attempts } = await supabase
     .from("attempts")
-    .select("id, status, access_code_id, created_at")
+    .select("id, status, access_code_id, created_at, started_at")
     .eq("user_id", user.id)
     .eq("exam_id", ACTIVE_EXAM_ID)
     .order("created_at", { ascending: false });
@@ -146,6 +149,41 @@ export default async function StartPage() {
       Math.max(sections.length - 1, 0),
     );
 
+    // --- Server-anchored time enforcement -------------------------------
+    const now = Date.now();
+    const startedAtMs = inProgress.started_at
+      ? new Date(inProgress.started_at).getTime()
+      : now;
+
+    // Whole-attempt cap: sat idle far beyond the total budget → force submit.
+    if (
+      sections.length > 0 &&
+      attemptExpired(startedAtMs, sections.length, config.section_seconds, now)
+    ) {
+      await submitAttempt(inProgress.id);
+      return (
+        <PageShell>
+          <Section>
+            <SubmittedScreen />
+          </Section>
+        </PageShell>
+      );
+    }
+
+    // Remaining time in the current section, from its server anchor.
+    const anchors = await getSectionAnchors(svc, inProgress.id);
+    const currentLevel = sections[initialSectionIndex]?.level;
+    const currentAnchor =
+      currentLevel != null
+        ? anchors.get(currentLevel) ??
+          (initialSectionIndex === 0 ? startedAtMs : undefined)
+        : undefined;
+    const initialTimeLeft = remainingSeconds(
+      currentAnchor,
+      config.section_seconds,
+      now,
+    );
+
     if (sections.length === 0) {
       return (
         <PageShell>
@@ -166,6 +204,7 @@ export default async function StartPage() {
 
     return (
       <ExamRunner
+        initialTimeLeft={initialTimeLeft}
         attemptId={inProgress.id}
         userId={user.id}
         sectionSeconds={config.section_seconds}
