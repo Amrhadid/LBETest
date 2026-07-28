@@ -55,6 +55,21 @@ export default async function AttemptDetailPage({
 
   const blurCount = (events ?? []).filter((e) => e.type === "tab_blur").length;
   const fsExitCount = (events ?? []).filter((e) => e.type === "fullscreen_exit").length;
+
+  // Longest quiet gap between consecutive events — a large gap means the
+  // candidate left the attempt open and returned much later.
+  const ev = events ?? [];
+  let maxGapMs = 0;
+  for (let i = 1; i < ev.length; i++) {
+    const g = new Date(ev[i].at).getTime() - new Date(ev[i - 1].at).getTime();
+    if (g > maxGapMs) maxGapMs = g;
+  }
+  const maxGapMin = Math.round(maxGapMs / 60000);
+  const longGap = maxGapMin >= 30; // 30+ min of inactivity mid-attempt
+  const gapLabel =
+    maxGapMin >= 60
+      ? `${Math.floor(maxGapMin / 60)}h ${maxGapMin % 60}m`
+      : `${maxGapMin}m`;
   const pending = (responses ?? []).filter((r) => r.grade_status === "pending_approval").length;
   const failed = (responses ?? []).filter((r) => r.grade_status === "failed").length;
 
@@ -81,19 +96,33 @@ export default async function AttemptDetailPage({
         <StatCard label="Status" value={attempt.status.replace("_", " ")} />
         <StatCard label="Result" value={attempt.lbe_level ? `LBE ${attempt.lbe_level}` : attempt.status === "scored" ? "Not certified" : "—"} hint={attempt.lbe_level ? levelName(attempt.lbe_level) : undefined} />
         <StatCard label="Focus-loss events" value={blurCount + fsExitCount} hint={`${blurCount} tab/window · ${fsExitCount} fullscreen`} />
-        <StatCard label="Grades pending / failed" value={`${pending} / ${failed}`} />
+        <StatCard label="Longest inactivity" value={ev.length > 1 ? gapLabel : "—"} hint="Quiet gap between events" />
       </div>
 
-      {(blurCount > 0 || fsExitCount > 0) && (
+      {(blurCount > 0 || fsExitCount > 0 || longGap) && (
         <div className="mt-6 flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800">
           <Flag className="mt-0.5 size-4 shrink-0" />
           <p>
-            This candidate left the exam window {blurCount} time{blurCount === 1 ? "" : "s"} and
-            exited fullscreen {fsExitCount} time{fsExitCount === 1 ? "" : "s"}. Review the timeline
-            below — repeated focus loss may warrant a closer look.
+            {(blurCount > 0 || fsExitCount > 0) && (
+              <>
+                This candidate left the exam window {blurCount} time{blurCount === 1 ? "" : "s"} and
+                exited fullscreen {fsExitCount} time{fsExitCount === 1 ? "" : "s"}.{" "}
+              </>
+            )}
+            {longGap && (
+              <>
+                There was a <strong>{gapLabel}</strong> gap with no activity — the candidate likely
+                left the attempt open and returned later (time is still enforced server-side).{" "}
+              </>
+            )}
+            Review the timeline below.
           </p>
         </div>
       )}
+
+      <div className="mt-4 grid gap-4 sm:grid-cols-4">
+        <StatCard label="Grades pending / failed" value={`${pending} / ${failed}`} />
+      </div>
 
       <div className="mt-6 grid gap-2 text-sm text-muted-foreground sm:grid-cols-3">
         <p><span className="font-medium text-charcoal">Started:</span> {fmt(attempt.started_at)}</p>
