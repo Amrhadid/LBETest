@@ -146,15 +146,14 @@ export async function saveItem(input: ItemInput): Promise<AdminActionState> {
   return { message: "Saved." };
 }
 
-const EXAM_AUDIO_BUCKET = "exam-audio";
-
 /**
  * Generate the listening audio for an audio-source item: synthesize the script
- * once via Google TTS, store the MP3 in the exam-audio bucket, and save its URL
- * on the item. Called ONLY from the admin "Generate audio" button — never on a
- * candidate attempt. Regenerating overwrites the same object (deterministic
- * path) and cache-busts the URL. Saves the script into `prompt` too, so the
- * stored audio always matches the stored script.
+ * once via Google TTS, store the MP3 in the private exam-audio bucket, and save
+ * its object PATH on the item (media_url). Called ONLY from the admin "Generate
+ * audio" button — never on a candidate attempt. Regenerating overwrites the
+ * same object (deterministic path). Saves the script into `prompt` too, so the
+ * stored audio always matches the stored script. Returns a fresh short-lived
+ * signed URL for the admin preview (the bucket is private).
  */
 export async function generateItemAudio(
   itemId: string,
@@ -183,23 +182,24 @@ export async function generateItemAudio(
     return { error: e instanceof Error ? e.message : "Audio generation failed." };
   }
 
+  const { EXAM_AUDIO_BUCKET, signExamAudio } = await import(
+    "@/lib/exam/audio.server"
+  );
   const path = `${itemId}.mp3`;
   const { error: upErr } = await svc.storage
     .from(EXAM_AUDIO_BUCKET)
     .upload(path, audio, { contentType: "audio/mpeg", upsert: true });
   if (upErr) return { error: `Could not store the audio: ${upErr.message}` };
 
-  const { data: pub } = svc.storage.from(EXAM_AUDIO_BUCKET).getPublicUrl(path);
-  // Cache-bust so a regenerated file isn't served stale from the same path.
-  const url = `${pub.publicUrl}?t=${Date.now()}`;
-
+  // Store the PATH (not a permanent URL); the runner/preview sign it on demand.
   const { error } = await svc
     .from("items")
-    .update({ prompt: text, media_url: url })
+    .update({ prompt: text, media_url: path })
     .eq("id", itemId);
-  if (error) return { error: "Could not save the audio URL on the item." };
+  if (error) return { error: "Could not save the audio path on the item." };
 
   revalidatePath("/admin/library");
+  const url = (await signExamAudio(svc, path)) ?? undefined;
   return { message: "Audio generated and saved.", url };
 }
 

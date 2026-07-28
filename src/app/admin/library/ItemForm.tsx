@@ -38,7 +38,15 @@ interface ItemData {
 const label = "mb-1 block text-sm text-muted-foreground";
 const field = "h-11 w-full rounded-lg border border-gold/30 bg-card px-3 text-sm";
 
-export function ItemForm({ examId, item }: { examId: string; item?: ItemData }) {
+export function ItemForm({
+  examId,
+  item,
+  audioSignedUrl,
+}: {
+  examId: string;
+  item?: ItemData;
+  audioSignedUrl?: string | null;
+}) {
   const router = useRouter();
   const [level, setLevel] = React.useState(String(item?.lbe_level ?? 1));
   const [qtype, setQtype] = React.useState(String(item?.question_type ?? 1));
@@ -83,7 +91,9 @@ export function ItemForm({ examId, item }: { examId: string; item?: ItemData }) 
   const [pending, start] = React.useTransition();
   const [error, setError] = React.useState<string | null>(null);
 
-  // Audio generation (audio-source items only).
+  // Audio generation (audio-source items only). media_url stores the object
+  // PATH; the playable preview is a separate short-lived signed URL.
+  const [audioPreview, setAudioPreview] = React.useState<string | null>(audioSignedUrl ?? null);
   const [audioPending, startAudio] = React.useTransition();
   const [audioMsg, setAudioMsg] = React.useState<string | null>(null);
   const generateAudio = () =>
@@ -93,7 +103,7 @@ export function ItemForm({ examId, item }: { examId: string; item?: ItemData }) 
       const res = await generateItemAudio(item.id, prompt);
       if (res.error) setAudioMsg(res.error);
       else {
-        if (res.url) setMediaUrl(res.url);
+        if (res.url) setAudioPreview(res.url);
         setAudioMsg("Audio generated and saved.");
       }
     });
@@ -205,7 +215,7 @@ export function ItemForm({ examId, item }: { examId: string; item?: ItemData }) 
               ) : (
                 <Volume2 className="size-4" />
               )}
-              {mediaUrl ? "Regenerate audio" : "Generate audio"}
+              {audioPreview ? "Regenerate audio" : "Generate audio"}
             </Button>
             {!item?.id && (
               <span className="text-xs text-muted-foreground">
@@ -214,8 +224,8 @@ export function ItemForm({ examId, item }: { examId: string; item?: ItemData }) 
             )}
             {audioMsg && <span className="text-xs text-muted-foreground">{audioMsg}</span>}
           </div>
-          {mediaUrl && (
-            <audio controls src={mediaUrl} className="mt-3 h-9 w-full max-w-md" />
+          {audioPreview && (
+            <audio controls src={audioPreview} className="mt-3 h-9 w-full max-w-md" />
           )}
         </div>
       )}
