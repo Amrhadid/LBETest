@@ -2,11 +2,11 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Loader2, Plus, Trash2, Volume2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { saveItem, type ItemInput } from "@/app/admin/actions";
+import { saveItem, generateItemAudio, type ItemInput } from "@/app/admin/actions";
 
 const QUESTION_TYPES = [
   [1, "1 — Choose the correct answer (MCQ)"],
@@ -82,6 +82,21 @@ export function ItemForm({ examId, item }: { examId: string; item?: ItemData }) 
 
   const [pending, start] = React.useTransition();
   const [error, setError] = React.useState<string | null>(null);
+
+  // Audio generation (audio-source items only).
+  const [audioPending, startAudio] = React.useTransition();
+  const [audioMsg, setAudioMsg] = React.useState<string | null>(null);
+  const generateAudio = () =>
+    startAudio(async () => {
+      setAudioMsg(null);
+      if (!item?.id) return;
+      const res = await generateItemAudio(item.id, prompt);
+      if (res.error) setAudioMsg(res.error);
+      else {
+        if (res.url) setMediaUrl(res.url);
+        setAudioMsg("Audio generated and saved.");
+      }
+    });
 
   const t = Number(qtype);
   const isMcq = t === 1 || t === 2;
@@ -167,6 +182,43 @@ export function ItemForm({ examId, item }: { examId: string; item?: ItemData }) 
           <Input value={mediaUrl} onChange={(e) => setMediaUrl(e.target.value)} placeholder="https://…" />
         </label>
       </div>
+
+      {source === "audio" && (
+        <div className="rounded-xl border border-gold/15 bg-card p-4">
+          <p className="mb-1 text-sm font-semibold text-charcoal">Listening audio</p>
+          <p className="mb-3 text-xs text-muted-foreground">
+            Type the listening script in the <strong>Prompt</strong> field above,
+            then generate the audio once. Candidates stream the saved file — Google
+            TTS is <strong>not</strong> called again per attempt. Regenerating
+            overwrites the stored file.
+          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              size="md"
+              onClick={generateAudio}
+              disabled={audioPending || !item?.id}
+            >
+              {audioPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Volume2 className="size-4" />
+              )}
+              {mediaUrl ? "Regenerate audio" : "Generate audio"}
+            </Button>
+            {!item?.id && (
+              <span className="text-xs text-muted-foreground">
+                Save the item first, then generate its audio.
+              </span>
+            )}
+            {audioMsg && <span className="text-xs text-muted-foreground">{audioMsg}</span>}
+          </div>
+          {mediaUrl && (
+            <audio controls src={mediaUrl} className="mt-3 h-9 w-full max-w-md" />
+          )}
+        </div>
+      )}
 
       <label className="block">
         <span className={label}>Prompt / question shown to the candidate</span>
