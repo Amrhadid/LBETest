@@ -203,6 +203,37 @@ export async function generateItemAudio(
   return { message: "Audio generated and saved.", url };
 }
 
+/**
+ * Create many items in ONE atomic insert (all succeed or none). Used by the
+ * bulk "Add section" flow so a section is never left half-populated.
+ */
+export async function saveItemsBulk(
+  inputs: ItemInput[],
+): Promise<AdminActionState & { count?: number }> {
+  await requireAdmin();
+  if (!Array.isArray(inputs) || inputs.length === 0) {
+    return { error: "No items to save." };
+  }
+  const svc = createServiceRoleClient();
+  const rows = inputs.map((i) => ({
+    exam_id: i.exam_id,
+    lbe_level: i.lbe_level,
+    question_type: i.question_type,
+    source_type: (i.source_type || null) as never,
+    prompt: i.prompt,
+    media_url: i.media_url,
+    options: (i.options ?? null) as never,
+    answer_key: (i.answer_key ?? null) as never,
+    rubric: (i.rubric ?? null) as never,
+    active: i.active,
+  }));
+  // A single multi-row insert is atomic: any failure rolls back all rows.
+  const { error } = await svc.from("items").insert(rows);
+  if (error) return { error: `Could not save items: ${error.message}` };
+  revalidatePath("/admin/library");
+  return { message: `Added ${rows.length} items.`, count: rows.length };
+}
+
 export async function setItemActive(
   id: string,
   active: boolean,

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus, Layers } from "lucide-react";
 
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/admin/guard";
@@ -44,9 +44,14 @@ export default async function AdminLibraryPage({
         title="Exam Library"
         description="The question/item bank. Create, edit, activate or remove items."
         actions={
-          <Link href={`/admin/library/new?exam=${examId}`}>
-            <Button size="sm"><Plus className="size-4" /> New item</Button>
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link href={`/admin/library/new?exam=${examId}`}>
+              <Button size="sm"><Plus className="size-4" /> New item</Button>
+            </Link>
+            <Link href={`/admin/library/bulk?exam=${examId}&level=1`}>
+              <Button size="sm" variant="outline"><Layers className="size-4" /> Add section (bulk)</Button>
+            </Link>
+          </div>
         }
       />
 
