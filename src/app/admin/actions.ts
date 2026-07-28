@@ -146,6 +146,63 @@ export async function saveItem(input: ItemInput): Promise<AdminActionState> {
   return { message: "Saved." };
 }
 
+const EXAM_AUDIO_BUCKET = "exam-audio";
+
+/**
+ * Generate the listening audio for an audio-source item: synthesize the script
+ * once via Google TTS, store the MP3 in the exam-audio bucket, and save its URL
+ * on the item. Called ONLY from the admin "Generate audio" button — never on a
+ * candidate attempt. Regenerating overwrites the same object (deterministic
+ * path) and cache-busts the URL. Saves the script into `prompt` too, so the
+ * stored audio always matches the stored script.
+ */
+export async function generateItemAudio(
+  itemId: string,
+  scriptText: string,
+): Promise<AdminActionState & { url?: string }> {
+  await requireAdmin();
+  const text = (scriptText || "").trim();
+  if (!text) return { error: "Add the script text first." };
+
+  const svc = createServiceRoleClient();
+  const { data: item } = await svc
+    .from("items")
+    .select("id, source_type")
+    .eq("id", itemId)
+    .maybeSingle();
+  if (!item) return { error: "Item not found. Save the item first." };
+  if (item.source_type !== "audio") {
+    return { error: "Set the source type to Audio before generating audio." };
+  }
+
+  let audio: Uint8Array;
+  try {
+    const { synthesizeSpeech } = await import("@/lib/exam/tts.server");
+    audio = await synthesizeSpeech(text);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Audio generation failed." };
+  }
+
+  const path = `${itemId}.mp3`;
+  const { error: upErr } = await svc.storage
+    .from(EXAM_AUDIO_BUCKET)
+    .upload(path, audio, { contentType: "audio/mpeg", upsert: true });
+  if (upErr) return { error: `Could not store the audio: ${upErr.message}` };
+
+  const { data: pub } = svc.storage.from(EXAM_AUDIO_BUCKET).getPublicUrl(path);
+  // Cache-bust so a regenerated file isn't served stale from the same path.
+  const url = `${pub.publicUrl}?t=${Date.now()}`;
+
+  const { error } = await svc
+    .from("items")
+    .update({ prompt: text, media_url: url })
+    .eq("id", itemId);
+  if (error) return { error: "Could not save the audio URL on the item." };
+
+  revalidatePath("/admin/library");
+  return { message: "Audio generated and saved.", url };
+}
+
 export async function setItemActive(
   id: string,
   active: boolean,
