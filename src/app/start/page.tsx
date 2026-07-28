@@ -64,6 +64,18 @@ async function loadSections(): Promise<RunnerSection[]> {
     list.push(item);
     byLevel.set(item.lbe_level, list);
   }
+
+  // Listening audio lives in a private bucket; mint a short-lived signed URL
+  // for each audio item so the client <audio> can stream it. Never calls TTS.
+  const { signExamAudio } = await import("@/lib/exam/audio.server");
+  await Promise.all(
+    [...byLevel.values()].flat().map(async (it) => {
+      if (it.source_type === "audio" && it.media_url) {
+        it.media_url = await signExamAudio(svc, it.media_url);
+      }
+    }),
+  );
+
   return [...byLevel.entries()]
     .sort((a, b) => a[0] - b[0])
     .map(([level, items]) => ({ level, items }));

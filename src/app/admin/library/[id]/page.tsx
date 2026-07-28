@@ -38,10 +38,17 @@ export default async function ItemEditorPage({
 
   if (!item) notFound();
 
+  // Private bucket → sign the stored audio path for the preview player.
+  let audioSignedUrl: string | null = null;
+  if (item.source_type === "audio" && item.media_url) {
+    const { signExamAudio } = await import("@/lib/exam/audio.server");
+    audioSignedUrl = await signExamAudio(svc, item.media_url);
+  }
+
   return (
     <div>
       <AdminHeader eyebrow="Exam Library" title="Edit item" description={`Section ${item.lbe_level} · type ${item.question_type}`} />
-      <ItemForm examId={item.exam_id ?? ACTIVE_EXAM_ID} item={item} />
+      <ItemForm examId={item.exam_id ?? ACTIVE_EXAM_ID} item={item} audioSignedUrl={audioSignedUrl} />
     </div>
   );
 }
