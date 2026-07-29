@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, FileText, ListChecks, Library, ClipboardCheck,
-  GraduationCap, Users, ScrollText, Award, KeyRound,
+  GraduationCap, Users, ScrollText, Award, KeyRound, History,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -22,6 +22,7 @@ const ITEMS: Item[] = [
   { label: "Attempts / Results", href: "/admin/attempts", icon: ScrollText, adminOnly: true },
   { label: "Certificates", href: "/admin/certificates", icon: Award, adminOnly: true },
   { label: "Access Codes", href: "/admin/access-codes", icon: KeyRound, adminOnly: true },
+  { label: "Audit Log", href: "/admin/audit-log", icon: History, adminOnly: true },
 ];
 
 export function AdminNav({ role }: { role: string }) {

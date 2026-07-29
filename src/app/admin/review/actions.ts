@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
 import { finalizeAttempt } from "@/lib/certificates/finalize";
+import { writeAudit } from "@/lib/exam/audit.server";
 
 export type ReviewActionState = { error?: string; message?: string };
 
@@ -59,6 +60,15 @@ export async function decideGrade(
     return { error: "Could not record your decision. Please try again." };
   }
 
+  await writeAudit(
+    { id: user.id, email: user.email },
+    {
+      action: "grade.decide",
+      targetType: "response",
+      targetId: responseId,
+      detail: { decision, attemptId },
+    },
+  );
   await tryFinalize(attemptId);
   revalidatePath("/admin/review");
   return {
@@ -101,6 +111,15 @@ export async function gradeManually(
     return { error: "Could not save the grade. Please try again." };
   }
 
+  await writeAudit(
+    { id: user.id, email: user.email },
+    {
+      action: "grade.manual",
+      targetType: "response",
+      targetId: responseId,
+      detail: { score, isCorrect, attemptId },
+    },
+  );
   await tryFinalize(attemptId);
   revalidatePath("/admin/review");
   return { message: "Graded." };

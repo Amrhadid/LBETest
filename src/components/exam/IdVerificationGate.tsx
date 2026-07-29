@@ -1,0 +1,198 @@
+"use client";
+
+import * as React from "react";
+import { IdCard, Camera, Loader2, Check } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { uploadIdImage } from "@/lib/exam/storage";
+import { saveIdVerification } from "@/app/start/actions";
+
+/**
+ * Mandatory pre-exam ID + selfie verification (#1). The candidate uploads a
+ * photo of their ID, then takes a webcam selfie. Both are stored privately and
+ * shown side-by-side to an admin for a MANUAL match — no automated matching.
+ * There is no skip: the exam cannot start until both are captured.
+ */
+export function IdVerificationGate({
+  supabase,
+  userId,
+  attemptId,
+  onDone,
+}: {
+  supabase: SupabaseClient;
+  userId: string;
+  attemptId: string;
+  onDone: () => void;
+}) {
+  const [idFile, setIdFile] = React.useState<File | null>(null);
+  const [idPreview, setIdPreview] = React.useState<string>("");
+  const [selfie, setSelfie] = React.useState<Blob | null>(null);
+  const [selfiePreview, setSelfiePreview] = React.useState<string>("");
+  const [camOn, setCamOn] = React.useState(false);
+  const [submitting, setSubmitting] = React.useState(false);
+  const [err, setErr] = React.useState("");
+
+  const videoRef = React.useRef<HTMLVideoElement | null>(null);
+  const streamRef = React.useRef<MediaStream | null>(null);
+
+  const stopCam = React.useCallback(() => {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    setCamOn(false);
+  }, []);
+  React.useEffect(() => () => stopCam(), [stopCam]);
+
+  const onId = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0] ?? null;
+    setIdFile(f);
+    setIdPreview(f ? URL.createObjectURL(f) : "");
+  };
+
+  const enableCam = async () => {
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      streamRef.current = s;
+      setCamOn(true);
+      if (videoRef.current) {
+        videoRef.current.srcObject = s;
+        await videoRef.current.play().catch(() => {});
+      }
+    } catch {
+      setErr("We couldn't access your camera for the selfie.");
+    }
+  };
+
+  const capture = () => {
+    const v = videoRef.current;
+    if (!v || !v.videoWidth) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = v.videoWidth;
+    canvas.height = v.videoHeight;
+    canvas.getContext("2d")?.drawImage(v, 0, 0);
+    canvas.toBlob(
+      (b) => {
+        if (b) {
+          setSelfie(b);
+          setSelfiePreview(URL.createObjectURL(b));
+          stopCam();
+        }
+      },
+      "image/jpeg",
+      0.85,
+    );
+  };
+
+  const submit = async () => {
+    if (!idFile || !selfie) return;
+    setSubmitting(true);
+    setErr("");
+    try {
+      const [idPath, selfiePath] = await Promise.all([
+        uploadIdImage({ supabase, blob: idFile, userId, attemptId, kind: "id" }),
+        uploadIdImage({ supabase, blob: selfie, userId, attemptId, kind: "selfie" }),
+      ]);
+      const res = await saveIdVerification(attemptId, { idPath, selfiePath });
+      if (res?.error) {
+        setErr(res.error);
+        setSubmitting(false);
+        return;
+      }
+      onDone();
+    } catch {
+      setErr("Upload failed. Please check your connection and try again.");
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="mx-auto max-w-xl py-14">
+      <div className="text-center">
+        <p className="eyebrow">Identity check</p>
+        <h1 className="font-serif-display mt-3 text-3xl text-charcoal">
+          Verify your identity
+        </h1>
+        <p className="mt-3 text-sm text-muted-foreground">
+          Upload a photo of your government ID and take a quick selfie. A proctor
+          compares them before your result is released. This step is required.
+        </p>
+      </div>
+
+      <div className="mt-8 grid gap-6 sm:grid-cols-2">
+        {/* ID upload */}
+        <div className="rounded-xl border border-gold/25 p-4">
+          <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-charcoal">
+            <IdCard className="size-4 text-gold" /> Photo of your ID
+          </p>
+          {idPreview ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={idPreview} alt="ID preview" className="aspect-video w-full rounded-lg object-cover" />
+          ) : (
+            <div className="flex aspect-video items-center justify-center rounded-lg bg-charcoal/5 text-xs text-muted-foreground">
+              No file selected
+            </div>
+          )}
+          <input
+            type="file"
+            accept="image/*"
+            onChange={onId}
+            className="mt-3 block w-full text-sm text-muted-foreground file:mr-3 file:rounded-full file:border-0 file:bg-gold/15 file:px-3 file:py-1.5 file:text-charcoal"
+          />
+        </div>
+
+        {/* Selfie */}
+        <div className="rounded-xl border border-gold/25 p-4">
+          <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-charcoal">
+            <Camera className="size-4 text-gold" /> Selfie
+          </p>
+          {selfiePreview ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={selfiePreview} alt="Selfie preview" className="aspect-video w-full rounded-lg object-cover" />
+          ) : (
+            <video ref={videoRef} muted playsInline className="aspect-video w-full rounded-lg bg-charcoal/80 object-cover" />
+          )}
+          <div className="mt-3 flex gap-2">
+            {!selfiePreview && !camOn && (
+              <Button type="button" size="sm" variant="outline" onClick={enableCam}>
+                <Camera className="size-4" /> Enable camera
+              </Button>
+            )}
+            {camOn && (
+              <Button type="button" size="sm" variant="gold" onClick={capture}>
+                Take selfie
+              </Button>
+            )}
+            {selfiePreview && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setSelfie(null);
+                  setSelfiePreview("");
+                }}
+              >
+                Retake
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {err && <p className="mt-4 text-center text-sm text-red-600">{err}</p>}
+
+      <div className="mt-8 flex justify-center">
+        <Button
+          type="button"
+          variant="gold"
+          size="lg"
+          disabled={!idFile || !selfie || submitting}
+          onClick={submit}
+        >
+          {submitting ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
+          {submitting ? "Saving…" : "Submit & continue"}
+        </Button>
+      </div>
+    </div>
+  );
+}

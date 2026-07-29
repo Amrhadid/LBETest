@@ -26,7 +26,7 @@ export default async function AdminAttemptsPage({
   let query = svc
     .from("attempts")
     .select(
-      "id, user_id, status, final_score, lbe_level, submitted_at, created_at, trust_score, country, is_datacenter",
+      "id, user_id, status, final_score, lbe_level, submitted_at, created_at, trust_score, country, is_datacenter, review_status",
     )
     .eq("is_preview", false);
 
@@ -74,6 +74,7 @@ export default async function AdminAttemptsPage({
           <tr className="border-b border-gold/15 text-left text-xs uppercase text-muted-foreground">
             <th className="p-3">Candidate</th>
             <th className="p-3">Trust</th>
+            <th className="p-3">Review</th>
             <th className="p-3">Status</th>
             <th className="p-3">Score</th>
             <th className="p-3">Level</th>
@@ -90,6 +91,15 @@ export default async function AdminAttemptsPage({
                 </Link>
               </td>
               <td className="p-3"><TrustBadge score={a.trust_score} /></td>
+              <td className="p-3 text-xs">
+                {a.review_status === "cleared" ? (
+                  <span className="text-emerald-700">Cleared</span>
+                ) : a.review_status === "confirmed_violation" ? (
+                  <span className="font-medium text-red-700">Violation</span>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
+              </td>
               <td className="p-3">
                 <span className="rounded-full bg-gold/10 px-2 py-0.5 text-xs font-medium capitalize">
                   {a.status.replace("_", " ")}
@@ -107,7 +117,7 @@ export default async function AdminAttemptsPage({
             </tr>
           ))}
           {(attempts ?? []).length === 0 && (
-            <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">No attempts yet.</td></tr>
+            <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">No attempts yet.</td></tr>
           )}
         </tbody>
       </TableWrap>

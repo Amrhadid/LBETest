@@ -185,6 +185,19 @@ export interface Database {
           fingerprint: string | null;
           room_scan_path: string | null;
           violation_count: number;
+          id_verified: boolean;
+          id_image_path: string | null;
+          selfie_path: string | null;
+          has_webcam_rec: boolean;
+          has_mic_rec: boolean;
+          has_screen_rec: boolean;
+          no_face_count: number;
+          multi_face_count: number;
+          multi_speaker: boolean;
+          review_status: string | null;
+          review_note: string | null;
+          reviewed_by: string | null;
+          reviewed_at: string | null;
           created_at: string;
         };
         Insert: {
@@ -210,9 +223,46 @@ export interface Database {
           fingerprint?: string | null;
           room_scan_path?: string | null;
           violation_count?: number;
+          id_verified?: boolean;
+          id_image_path?: string | null;
+          selfie_path?: string | null;
+          has_webcam_rec?: boolean;
+          has_mic_rec?: boolean;
+          has_screen_rec?: boolean;
+          no_face_count?: number;
+          multi_face_count?: number;
+          multi_speaker?: boolean;
+          review_status?: string | null;
+          review_note?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["attempts"]["Insert"]>;
+        Relationships: [];
+      };
+      audit_log: {
+        Row: {
+          id: string;
+          actor_id: string | null;
+          actor_email: string | null;
+          action: string;
+          target_type: string | null;
+          target_id: string | null;
+          detail: Json | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          actor_id?: string | null;
+          actor_email?: string | null;
+          action: string;
+          target_type?: string | null;
+          target_id?: string | null;
+          detail?: Json | null;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["audit_log"]["Insert"]>;
         Relationships: [];
       };
       responses: {

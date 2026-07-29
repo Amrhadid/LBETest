@@ -13,6 +13,9 @@ import { SourceStimulus } from "@/components/exam/SourceStimulus";
 import { QuestionRenderer } from "@/components/exam/QuestionRenderer";
 import { SubmittedScreen } from "@/components/exam/SubmittedScreen";
 import { RoomScanGate } from "@/components/exam/RoomScanGate";
+import { IdVerificationGate } from "@/components/exam/IdVerificationGate";
+import { useAttemptCapture } from "@/lib/exam/useAttemptCapture";
+import { ShieldCheck, Loader2 } from "lucide-react";
 import { saveResponse, logEvent, submitAttempt, scoreSection, beginSection, recordAttemptMeta } from "@/app/start/actions";
 
 export type RunnerSection = { level: LbeLevel; items: ExamItem[] };
@@ -33,6 +36,7 @@ export function ExamRunner({
   config,
   isPreview = false,
   initialRoomScanPath = null,
+  initialIdVerified = false,
 }: {
   attemptId: string;
   userId: string;
@@ -47,6 +51,8 @@ export function ExamRunner({
   isPreview?: boolean;
   /** Existing room-scan path (or skip marker) — non-null means already done. */
   initialRoomScanPath?: string | null;
+  /** Whether ID + selfie verification was already completed for this attempt. */
+  initialIdVerified?: boolean;
 }) {
   const [sectionIndex, setSectionIndex] = React.useState(
     Math.min(initialSectionIndex, sections.length - 1),
@@ -65,6 +71,15 @@ export function ExamRunner({
   const [scanDone, setScanDone] = React.useState(
     isPreview || initialRoomScanPath != null || initialSectionIndex > 0,
   );
+  // ID verification (#1) gates everything on a fresh real attempt.
+  const [idDone, setIdDone] = React.useState(
+    isPreview || initialIdVerified || initialSectionIndex > 0,
+  );
+  // Continuous recording (#2/#3/#4): started via a user gesture before section 1.
+  const [captureStarted, setCaptureStarted] = React.useState(
+    isPreview || initialSectionIndex > 0,
+  );
+  const [startingCapture, setStartingCapture] = React.useState(false);
   // True once the first section has mounted (so later sections reset to full).
   const firstMountRef = React.useRef(true);
 
@@ -73,6 +88,13 @@ export function ExamRunner({
   const debounceTimers = React.useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   // Guards against double-submitting a section (timer + click racing).
   const advancingRef = React.useRef(false);
+
+  const capture = useAttemptCapture({
+    supabase,
+    userId,
+    attemptId,
+    enabled: !isPreview,
+  });
 
   const section = sections[sectionIndex];
   const isLastSection = sectionIndex === sections.length - 1;
@@ -238,6 +260,7 @@ export function ExamRunner({
     await scoreSection(attemptId, section.level);
 
     if (isLastSection) {
+      capture.stop(); // end continuous recording before finalizing
       await submitAttempt(attemptId);
       setDone(true);
       setSubmitting(false);
@@ -263,7 +286,23 @@ export function ExamRunner({
     );
   }
 
-  // Gate a fresh real attempt behind the room scan before section 1.
+  // Pre-exam gate sequence (real attempts only): ID → room scan → start
+  // monitored recording, each before section 1.
+  if (!idDone) {
+    return (
+      <div className="min-h-dvh bg-background">
+        <div className="container mx-auto px-4">
+          <IdVerificationGate
+            supabase={supabase}
+            userId={userId}
+            attemptId={attemptId}
+            onDone={() => setIdDone(true)}
+          />
+        </div>
+      </div>
+    );
+  }
+
   if (!scanDone) {
     return (
       <div className="min-h-dvh bg-background">
@@ -274,6 +313,46 @@ export function ExamRunner({
             attemptId={attemptId}
             onDone={() => setScanDone(true)}
           />
+        </div>
+      </div>
+    );
+  }
+
+  if (!captureStarted) {
+    return (
+      <div className="min-h-dvh bg-background">
+        <div className="container mx-auto max-w-lg px-4 py-16 text-center">
+          <ShieldCheck className="mx-auto size-10 text-gold" />
+          <h1 className="font-serif-display mt-4 text-3xl text-charcoal">
+            This exam is monitored
+          </h1>
+          <p className="mt-3 text-sm text-muted-foreground">
+            For exam integrity we record your <strong>camera</strong>,{" "}
+            <strong>microphone</strong>, and <strong>screen</strong> for the whole
+            attempt. When you continue, your browser will ask you to share your
+            screen — please share your <em>entire screen</em>. Recording stops when
+            you finish.
+          </p>
+          <Button
+            type="button"
+            variant="gold"
+            size="lg"
+            className="mt-6"
+            disabled={startingCapture}
+            onClick={async () => {
+              setStartingCapture(true);
+              await capture.start();
+              setStartingCapture(false);
+              setCaptureStarted(true);
+            }}
+          >
+            {startingCapture ? <Loader2 className="size-4 animate-spin" /> : <ShieldCheck className="size-4" />}
+            {startingCapture ? "Starting…" : "Begin monitored exam"}
+          </Button>
+          <p className="mt-3 text-xs text-muted-foreground">
+            If you decline a permission, the exam still starts but the missing
+            recording is flagged for review.
+          </p>
         </div>
       </div>
     );

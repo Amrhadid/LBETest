@@ -6,6 +6,64 @@ export const RESPONSE_AUDIO_BUCKET = "responses-audio";
 /** Private Storage bucket for pre-exam room-scan clips (#6). */
 export const ROOM_SCAN_BUCKET = "room-scans";
 
+/** Private bucket for ID photo + selfie verification images (#1). */
+export const ID_VERIFICATION_BUCKET = "id-verification";
+
+/** Private bucket for continuous webcam / mic / screen recordings (#2/#3/#4). */
+export const ATTEMPT_RECORDINGS_BUCKET = "attempt-recordings";
+
+export type RecordingKind = "webcam" | "mic" | "screen";
+
+/** Object-path prefix for one attempt's recordings of a given kind. */
+export function recordingPrefix(
+  userId: string,
+  attemptId: string,
+  kind: RecordingKind,
+): string {
+  return `${userId}/${attemptId}/${kind}`;
+}
+
+/** Upload one ID-verification image (kind = "id" or "selfie"); returns path. */
+export async function uploadIdImage(params: {
+  supabase: SupabaseClient;
+  blob: Blob;
+  userId: string;
+  attemptId: string;
+  kind: "id" | "selfie";
+}): Promise<string> {
+  const { supabase, blob, userId, attemptId, kind } = params;
+  const ext = blob.type.includes("png") ? "png" : "jpg";
+  const path = `${userId}/${attemptId}/${kind}.${ext}`;
+  const { error } = await supabase.storage
+    .from(ID_VERIFICATION_BUCKET)
+    .upload(path, blob, { contentType: blob.type || "image/jpeg", upsert: true });
+  if (error) throw new Error(`Failed to upload ${kind} image: ${error.message}`);
+  return path;
+}
+
+/**
+ * Upload one continuous-recording chunk. Chunks are sequential webm blobs
+ * (MediaRecorder timeslice); each gets a zero-padded index so they sort in
+ * order. Returns the stored path.
+ */
+export async function uploadRecordingChunk(params: {
+  supabase: SupabaseClient;
+  blob: Blob;
+  userId: string;
+  attemptId: string;
+  kind: RecordingKind;
+  index: number;
+}): Promise<string> {
+  const { supabase, blob, userId, attemptId, kind, index } = params;
+  const seq = String(index).padStart(5, "0");
+  const path = `${recordingPrefix(userId, attemptId, kind)}/${seq}.webm`;
+  const { error } = await supabase.storage
+    .from(ATTEMPT_RECORDINGS_BUCKET)
+    .upload(path, blob, { contentType: blob.type || "video/webm", upsert: true });
+  if (error) throw new Error(`Failed to upload ${kind} chunk: ${error.message}`);
+  return path;
+}
+
 /**
  * Upload a pre-exam room-scan clip to the private room-scans bucket and return
  * the stored object path (persist via the saveRoomScan action). First path
