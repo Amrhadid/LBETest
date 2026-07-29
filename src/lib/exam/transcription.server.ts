@@ -67,50 +67,38 @@ export type TranscribeCall = (args: {
   path: string;
 }) => Promise<TranscriptionResult>;
 
-/** The default {@link TranscribeCall}: Google Cloud Speech-to-Text (API key). */
-export const googleTranscribeCall: TranscribeCall = async ({ audio, path }) => {
-  const key = getGoogleSttApiKey();
-  if (!key) {
-    throw new Error("GOOGLE_STT_API_KEY is not configured for the Worker.");
-  }
+const LONGRUNNING_URL =
+  "https://speech.googleapis.com/v1/speech:longrunningrecognize";
+const OPERATIONS_URL = "https://speech.googleapis.com/v1/operations";
 
-  const { encoding } = encodingFor(path);
-  const res = await fetch(`${STT_URL}?key=${encodeURIComponent(key)}`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      config: {
-        encoding,
-        languageCode: "en-US",
-        enableAutomaticPunctuation: true,
-        model: "latest_long",
-        // Speaker diarization (#6): a spoken answer should be one voice. When
-        // Google reports >1 distinct speaker, we flag it as a trust signal.
-        diarizationConfig: {
-          enableSpeakerDiarization: true,
-          minSpeakerCount: 1,
-          maxSpeakerCount: 6,
-        },
-      },
-      audio: { content: toBase64(audio) },
-    }),
-  });
-
-  if (!res.ok) {
-    const detail = await res.text().catch(() => "");
-    throw new Error(
-      `Google STT error ${res.status}: ${detail.slice(0, 300)}`,
-    );
-  }
-
-  const data = (await res.json()) as {
-    results?: {
-      alternatives?: {
-        transcript?: string;
-        words?: { speakerTag?: number }[];
-      }[];
-    }[];
+/** Recognition config shared by the sync + long-running paths. */
+function recognitionConfig(encoding: string) {
+  return {
+    encoding,
+    languageCode: "en-US",
+    enableAutomaticPunctuation: true,
+    model: "latest_long",
+    // Speaker diarization (#6): a spoken answer should be one voice. When
+    // Google reports >1 distinct speaker, we flag it as a trust signal.
+    diarizationConfig: {
+      enableSpeakerDiarization: true,
+      minSpeakerCount: 1,
+      maxSpeakerCount: 6,
+    },
   };
+}
+
+interface SttResponse {
+  results?: {
+    alternatives?: {
+      transcript?: string;
+      words?: { speakerTag?: number }[];
+    }[];
+  }[];
+}
+
+/** Fold a Google STT response into our {text, speakerCount} shape. */
+function parseSttResponse(data: SttResponse): TranscriptionResult {
   const results = data.results ?? [];
   const text = results
     .map((r) => r.alternatives?.[0]?.transcript ?? "")
@@ -127,6 +115,92 @@ export const googleTranscribeCall: TranscribeCall = async ({ audio, path }) => {
     }
   }
   return { text, speakerCount: Math.max(1, speakers.size) };
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Long-audio path: Google's sync `recognize` endpoint rejects audio longer than
+ * ~60s. For those we submit an async `longRunningRecognize` operation (inline
+ * base64 content — no GCS bucket needed) and poll until it completes. Bounded so
+ * a stuck operation can't hang the caller; on timeout we throw and the response
+ * is marked for manual grading, same as any other STT failure.
+ */
+async function longRunningTranscribe(
+  key: string,
+  encoding: string,
+  audio: Uint8Array,
+): Promise<TranscriptionResult> {
+  const start = await fetch(
+    `${LONGRUNNING_URL}?key=${encodeURIComponent(key)}`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        config: recognitionConfig(encoding),
+        audio: { content: toBase64(audio) },
+      }),
+    },
+  );
+  if (!start.ok) {
+    const detail = await start.text().catch(() => "");
+    throw new Error(
+      `Google STT longrunning start error ${start.status}: ${detail.slice(0, 300)}`,
+    );
+  }
+  const { name } = (await start.json()) as { name?: string };
+  if (!name) throw new Error("Google STT longrunning returned no operation name.");
+
+  // Poll: ~20 tries × 4s = up to ~80s wall time (I/O wait, not CPU).
+  for (let i = 0; i < 20; i++) {
+    await sleep(4000);
+    const poll = await fetch(
+      `${OPERATIONS_URL}/${encodeURIComponent(name)}?key=${encodeURIComponent(key)}`,
+    );
+    if (!poll.ok) continue;
+    const op = (await poll.json()) as {
+      done?: boolean;
+      response?: SttResponse;
+      error?: { message?: string };
+    };
+    if (op.done) {
+      if (op.error) {
+        throw new Error(`Google STT longrunning failed: ${op.error.message ?? "unknown"}`);
+      }
+      return parseSttResponse(op.response ?? {});
+    }
+  }
+  throw new Error("Google STT longrunning timed out before completing.");
+}
+
+/** The default {@link TranscribeCall}: Google Cloud Speech-to-Text (API key). */
+export const googleTranscribeCall: TranscribeCall = async ({ audio, path }) => {
+  const key = getGoogleSttApiKey();
+  if (!key) {
+    throw new Error("GOOGLE_STT_API_KEY is not configured for the Worker.");
+  }
+
+  const { encoding } = encodingFor(path);
+  const res = await fetch(`${STT_URL}?key=${encodeURIComponent(key)}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      config: recognitionConfig(encoding),
+      audio: { content: toBase64(audio) },
+    }),
+  });
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    // Sync `recognize` caps audio at ~60s. When the clip is longer, Google
+    // returns 400 "Sync input too long" — retry via the async long-running API.
+    if (res.status === 400 && /too long|LongRunningRecognize/i.test(detail)) {
+      return longRunningTranscribe(key, encoding, audio);
+    }
+    throw new Error(`Google STT error ${res.status}: ${detail.slice(0, 300)}`);
+  }
+
+  return parseSttResponse((await res.json()) as SttResponse);
 };
 
 /**
