@@ -37,7 +37,6 @@ export async function GET(request: Request) {
 
   // Sample, clearly-fake data — a preview, never a real credential.
   const score = 73; // sample score out of 100
-  const percentileRank = 78; // sample cohort percentile
   const certCode = `LBE-${level}-PREVIEW`;
   const issuedAt = new Date();
   const expiresAt = new Date(issuedAt);
@@ -49,7 +48,6 @@ export async function GET(request: Request) {
       level,
       levelName: levelName(level),
       score,
-      percentileRank,
       certCode,
       issuedAt,
       expiresAt,

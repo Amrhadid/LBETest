@@ -131,17 +131,6 @@ export async function finalizeAttempt(
   const totalItems = tallies.reduce((s, t) => s + t.total, 0);
   const scoreOutOf100 = totalItems > 0 ? Math.round((score / totalItems) * 100) : 0;
 
-  // Percentile is based on completed, non-preview attempts for this exam.
-  // Ties share a rank: the percentage is the cohort strictly below this score.
-  const [{ count: cohortSize }, { count: lowerScores }] = await Promise.all([
-    svc.from("attempts").select("id", { count: "exact", head: true })
-      .eq("exam_id", attempt.exam_id).eq("status", "scored").eq("is_preview", false),
-    svc.from("attempts").select("id", { count: "exact", head: true })
-      .eq("exam_id", attempt.exam_id).eq("status", "scored").eq("is_preview", false)
-      .lt("final_score", score),
-  ]);
-  const percentileRank = Math.round(((lowerScores ?? 0) / Math.max(cohortSize ?? 1, 1)) * 100);
-
   // Authoritative result on the attempt (the internal result record).
   await svc
     .from("attempts")
@@ -211,7 +200,6 @@ export async function finalizeAttempt(
         user_id: attempt.user_id,
         lbe_level: level,
         score,
-        percentile_rank: percentileRank,
         issued_at: issuedAt.toISOString(),
         expires_at: expiresAt.toISOString(),
         status: "valid",
@@ -253,7 +241,6 @@ export async function finalizeAttempt(
       level,
       levelName: levelName(level),
       score: scoreOutOf100,
-      percentileRank,
       certCode,
       issuedAt,
       expiresAt,
