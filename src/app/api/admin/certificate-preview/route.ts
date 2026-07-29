@@ -36,9 +36,12 @@ export async function GET(request: Request) {
   const level = Math.min(5, Math.max(1, Number(url.searchParams.get("level")) || 3));
 
   // Sample, clearly-fake data — a preview, never a real credential.
-  const totalItems = 50;
-  const score = Math.round(totalItems * 0.73); // ~73/100 sample
+  const score = 73; // sample score out of 100
+  const percentileRank = 78; // sample cohort percentile
   const certCode = `LBE-${level}-PREVIEW`;
+  const issuedAt = new Date();
+  const expiresAt = new Date(issuedAt);
+  expiresAt.setFullYear(expiresAt.getFullYear() + 1);
 
   try {
     const pdf = await generateCertificatePdf({
@@ -46,9 +49,10 @@ export async function GET(request: Request) {
       level,
       levelName: levelName(level),
       score,
-      totalItems,
+      percentileRank,
       certCode,
-      issuedAt: new Date(),
+      issuedAt,
+      expiresAt,
       verifyUrl: verifyUrlFor(certCode),
     });
 
