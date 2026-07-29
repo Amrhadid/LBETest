@@ -41,8 +41,9 @@ export default async function AdminCertificatesPage() {
         eyebrow="Admin"
         title="Certificates"
         description="Issued certificates. View or download the PDF, or revoke a credential."
-        actions={<CertificatePreview />}
       />
+
+      <CertificatePreview />
 
       <TableWrap>
         <thead>
