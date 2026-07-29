@@ -94,15 +94,40 @@ export async function startAttempt(): Promise<ActionState> {
     };
   }
 
-  const { error } = await supabase.from("attempts").insert({
-    user_id: user.id,
-    exam_id: ACTIVE_EXAM_ID,
-    access_code_id: available.id,
-    status: "in_progress",
-    started_at: new Date().toISOString(),
-  });
+  const { data: created, error } = await supabase
+    .from("attempts")
+    .insert({
+      user_id: user.id,
+      exam_id: ACTIVE_EXAM_ID,
+      access_code_id: available.id,
+      status: "in_progress",
+      started_at: new Date().toISOString(),
+    })
+    .select("id")
+    .maybeSingle();
 
   if (error) return { error: "Could not start the exam. Please try again." };
+
+  // Country / network logging (#4): stamp the attempt with the Cloudflare edge
+  // geo + AS org, flagging datacenter/hosting IPs. Service role (candidates have
+  // no grant on these columns). Best-effort — never blocks starting the exam.
+  if (created?.id) {
+    try {
+      const { readRequestNetwork } = await import("@/lib/exam/cf.server");
+      const net = readRequestNetwork();
+      await createServiceRoleClient()
+        .from("attempts")
+        .update({
+          country: net.country,
+          asn: net.asn,
+          network: net.network,
+          is_datacenter: net.isDatacenter,
+        })
+        .eq("id", created.id);
+    } catch {
+      // Geo enrichment is best-effort telemetry.
+    }
+  }
 
   // Item exposure tracking: this exam's active items are now served to a real
   // attempt. Best-effort, via the service role (RPC is service-role-only so
@@ -219,6 +244,58 @@ export async function beginSection(
     type: "section_start",
     payload: { section: lbeLevel } as unknown as never,
   });
+}
+
+/**
+ * Persist the client-computed device fingerprint (#8) onto the attempt. Written
+ * via the service role after an ownership check (candidates have no grant on the
+ * fingerprint column). Idempotent; only sets it once. Best-effort.
+ */
+export async function recordAttemptMeta(
+  attemptId: string,
+  meta: { fingerprint?: string },
+): Promise<void> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+  if (!(await assertOwnedInProgress(supabase, attemptId, user.id))) return;
+
+  const fp = (meta.fingerprint ?? "").trim();
+  if (!fp) return;
+  const svc = createServiceRoleClient();
+  const { data: row } = await svc
+    .from("attempts")
+    .select("fingerprint")
+    .eq("id", attemptId)
+    .maybeSingle();
+  if (row?.fingerprint) return; // keep the first fingerprint seen
+  await svc.from("attempts").update({ fingerprint: fp }).eq("id", attemptId);
+}
+
+/**
+ * Persist a room-scan object path (#6) after the client uploads the clip to the
+ * private `room-scans` bucket. Ownership-checked; service-role write.
+ */
+export async function saveRoomScan(
+  attemptId: string,
+  path: string,
+): Promise<void> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+  if (!(await assertOwnedInProgress(supabase, attemptId, user.id))) return;
+
+  const clean = (path ?? "").trim();
+  // Path must belong to this user (RLS convention: first segment = user id).
+  if (!clean || !clean.startsWith(`${user.id}/`)) return;
+  await createServiceRoleClient()
+    .from("attempts")
+    .update({ room_scan_path: clean })
+    .eq("id", attemptId);
 }
 
 /** Append an attempt_events row (telemetry / lockdown log). */

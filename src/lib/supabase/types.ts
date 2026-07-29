@@ -176,6 +176,15 @@ export interface Database {
           lbe_level: number | null;
           access_code_id: string | null;
           is_preview: boolean;
+          trust_score: number | null;
+          trust_breakdown: Json | null;
+          country: string | null;
+          network: string | null;
+          asn: string | null;
+          is_datacenter: boolean;
+          fingerprint: string | null;
+          room_scan_path: string | null;
+          violation_count: number;
           created_at: string;
         };
         Insert: {
@@ -192,6 +201,15 @@ export interface Database {
           lbe_level?: number | null;
           access_code_id?: string | null;
           is_preview?: boolean;
+          trust_score?: number | null;
+          trust_breakdown?: Json | null;
+          country?: string | null;
+          network?: string | null;
+          asn?: string | null;
+          is_datacenter?: boolean;
+          fingerprint?: string | null;
+          room_scan_path?: string | null;
+          violation_count?: number;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["attempts"]["Insert"]>;

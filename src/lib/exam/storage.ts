@@ -3,6 +3,37 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 /** Private Storage bucket for spoken-response recordings (types 3 & 6). */
 export const RESPONSE_AUDIO_BUCKET = "responses-audio";
 
+/** Private Storage bucket for pre-exam room-scan clips (#6). */
+export const ROOM_SCAN_BUCKET = "room-scans";
+
+/**
+ * Upload a pre-exam room-scan clip to the private room-scans bucket and return
+ * the stored object path (persist via the saveRoomScan action). First path
+ * segment MUST be the owner's user id (bucket RLS matches auth.uid()).
+ */
+export async function uploadRoomScan(params: {
+  supabase: SupabaseClient;
+  blob: Blob;
+  userId: string;
+  attemptId: string;
+}): Promise<string> {
+  const { supabase, blob, userId, attemptId } = params;
+  const ext = blob.type.includes("mp4") ? "mp4" : "webm";
+  const path = `${userId}/${attemptId}/room-scan.${ext}`;
+
+  const { error } = await supabase.storage
+    .from(ROOM_SCAN_BUCKET)
+    .upload(path, blob, {
+      contentType: blob.type || "video/webm",
+      upsert: true,
+    });
+
+  if (error) {
+    throw new Error(`Failed to upload room scan: ${error.message}`);
+  }
+  return path;
+}
+
 /**
  * Build the Storage object path for a response recording.
  *

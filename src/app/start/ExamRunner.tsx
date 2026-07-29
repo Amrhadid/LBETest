@@ -12,7 +12,8 @@ import { SectionBadge } from "@/components/exam/SectionBadge";
 import { SourceStimulus } from "@/components/exam/SourceStimulus";
 import { QuestionRenderer } from "@/components/exam/QuestionRenderer";
 import { SubmittedScreen } from "@/components/exam/SubmittedScreen";
-import { saveResponse, logEvent, submitAttempt, scoreSection, beginSection } from "@/app/start/actions";
+import { RoomScanGate } from "@/components/exam/RoomScanGate";
+import { saveResponse, logEvent, submitAttempt, scoreSection, beginSection, recordAttemptMeta } from "@/app/start/actions";
 
 export type RunnerSection = { level: LbeLevel; items: ExamItem[] };
 
@@ -30,6 +31,8 @@ export function ExamRunner({
   initialResponses,
   initialSectionIndex,
   config,
+  isPreview = false,
+  initialRoomScanPath = null,
 }: {
   attemptId: string;
   userId: string;
@@ -40,6 +43,10 @@ export function ExamRunner({
   initialResponses: Record<string, ResponseAnswer>;
   initialSectionIndex: number;
   config?: PublicSupabaseConfig;
+  /** Reviewer/preview run: skip fingerprint + room scan entirely. */
+  isPreview?: boolean;
+  /** Existing room-scan path (or skip marker) — non-null means already done. */
+  initialRoomScanPath?: string | null;
 }) {
   const [sectionIndex, setSectionIndex] = React.useState(
     Math.min(initialSectionIndex, sections.length - 1),
@@ -53,6 +60,11 @@ export function ExamRunner({
   const [submitting, setSubmitting] = React.useState(false);
   const [done, setDone] = React.useState(false);
   const [isFullscreen, setIsFullscreen] = React.useState(false);
+  // Room scan (#6): only gate a real attempt that hasn't been scanned yet, and
+  // only ever before section 1. Preview runs never scan.
+  const [scanDone, setScanDone] = React.useState(
+    isPreview || initialRoomScanPath != null || initialSectionIndex > 0,
+  );
   // True once the first section has mounted (so later sections reset to full).
   const firstMountRef = React.useRef(true);
 
@@ -64,6 +76,27 @@ export function ExamRunner({
 
   const section = sections[sectionIndex];
   const isLastSection = sectionIndex === sections.length - 1;
+
+  // ---- Device fingerprint (#8): compute once, persist on the attempt -------
+  React.useEffect(() => {
+    if (isPreview) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const FingerprintJS = (await import("@fingerprintjs/fingerprintjs")).default;
+        const agent = await FingerprintJS.load();
+        const { visitorId } = await agent.get();
+        if (!cancelled && visitorId) {
+          await recordAttemptMeta(attemptId, { fingerprint: visitorId });
+        }
+      } catch {
+        // Fingerprinting is best-effort; never blocks the exam.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [attemptId, isPreview]);
 
   // ---- Lockdown: fullscreen + telemetry -----------------------------------
   const requestFullscreen = React.useCallback(() => {
@@ -226,6 +259,22 @@ export function ExamRunner({
     return (
       <div className="py-8">
         <SubmittedScreen />
+      </div>
+    );
+  }
+
+  // Gate a fresh real attempt behind the room scan before section 1.
+  if (!scanDone) {
+    return (
+      <div className="min-h-dvh bg-background">
+        <div className="container mx-auto px-4">
+          <RoomScanGate
+            supabase={supabase}
+            userId={userId}
+            attemptId={attemptId}
+            onDone={() => setScanDone(true)}
+          />
+        </div>
       </div>
     );
   }
