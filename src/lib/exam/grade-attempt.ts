@@ -177,11 +177,21 @@ export async function gradeAttemptTextResponses(
           await markFailed(r, item, "no audio recorded for spoken response");
           continue;
         }
-        candidateText = await transcribeResponseAudio(audioPath, transcribe);
+        const tr = await transcribeResponseAudio(audioPath, transcribe);
+        candidateText = tr.text;
         await svc
           .from("responses")
           .update({ transcript: candidateText })
           .eq("id", r.id);
+        // Multiple-speaker detection (#6): a spoken answer should be one voice.
+        // If diarization heard more than one, flag it on the attempt (fed into
+        // the trust score). Sticky: once true it stays true.
+        if (tr.speakerCount > 1) {
+          await svc
+            .from("attempts")
+            .update({ multi_speaker: true })
+            .eq("id", attemptId);
+        }
       } else {
         candidateText = answerText(r.answer as ResponseAnswer);
       }

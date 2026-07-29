@@ -54,11 +54,18 @@ function toBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-/** A transcription call: given audio bytes + path, return the transcript text. */
+/** Result of a transcription: the text plus distinct-speaker count (#6). */
+export interface TranscriptionResult {
+  text: string;
+  /** Distinct speakers heard (from diarization). >1 = possible collusion. */
+  speakerCount: number;
+}
+
+/** A transcription call: given audio bytes + path, return text + speaker count. */
 export type TranscribeCall = (args: {
   audio: Uint8Array;
   path: string;
-}) => Promise<string>;
+}) => Promise<TranscriptionResult>;
 
 /** The default {@link TranscribeCall}: Google Cloud Speech-to-Text (API key). */
 export const googleTranscribeCall: TranscribeCall = async ({ audio, path }) => {
@@ -77,6 +84,13 @@ export const googleTranscribeCall: TranscribeCall = async ({ audio, path }) => {
         languageCode: "en-US",
         enableAutomaticPunctuation: true,
         model: "latest_long",
+        // Speaker diarization (#6): a spoken answer should be one voice. When
+        // Google reports >1 distinct speaker, we flag it as a trust signal.
+        diarizationConfig: {
+          enableSpeakerDiarization: true,
+          minSpeakerCount: 1,
+          maxSpeakerCount: 6,
+        },
       },
       audio: { content: toBase64(audio) },
     }),
@@ -90,12 +104,29 @@ export const googleTranscribeCall: TranscribeCall = async ({ audio, path }) => {
   }
 
   const data = (await res.json()) as {
-    results?: { alternatives?: { transcript?: string }[] }[];
+    results?: {
+      alternatives?: {
+        transcript?: string;
+        words?: { speakerTag?: number }[];
+      }[];
+    }[];
   };
-  return (data.results ?? [])
+  const results = data.results ?? [];
+  const text = results
     .map((r) => r.alternatives?.[0]?.transcript ?? "")
     .join(" ")
     .trim();
+  // Diarization tags appear on the words of the LAST result. Count distinct
+  // non-zero speaker tags across all returned words.
+  const speakers = new Set<number>();
+  for (const r of results) {
+    for (const w of r.alternatives?.[0]?.words ?? []) {
+      if (typeof w.speakerTag === "number" && w.speakerTag > 0) {
+        speakers.add(w.speakerTag);
+      }
+    }
+  }
+  return { text, speakerCount: Math.max(1, speakers.size) };
 };
 
 /**
@@ -105,7 +136,7 @@ export const googleTranscribeCall: TranscribeCall = async ({ audio, path }) => {
 export async function transcribeResponseAudio(
   audioPath: string,
   call: TranscribeCall = googleTranscribeCall,
-): Promise<string> {
+): Promise<TranscriptionResult> {
   const svc = createServiceRoleClient();
   const { data, error } = await svc.storage
     .from(RESPONSE_AUDIO_BUCKET)

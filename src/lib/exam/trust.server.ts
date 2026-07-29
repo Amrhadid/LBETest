@@ -140,7 +140,7 @@ export async function computeAndStoreTrust(
   const svc = createServiceRoleClient();
   const { data: attempt } = await svc
     .from("attempts")
-    .select("id, user_id, is_preview, fingerprint, is_datacenter, violation_count")
+    .select("id, user_id, is_preview, fingerprint, is_datacenter, violation_count, id_verified, no_face_count, multi_face_count, multi_speaker")
     .eq("id", attemptId)
     .maybeSingle();
   if (!attempt || attempt.is_preview) return null;
@@ -166,6 +166,10 @@ export async function computeAndStoreTrust(
     duplicateAnswers: dups.length,
     datacenter: Boolean(attempt.is_datacenter),
     sharedFingerprint: fpShared,
+    idMissing: !attempt.id_verified,
+    noFace: (attempt.no_face_count as number) ?? 0,
+    multipleFaces: (attempt.multi_face_count as number) ?? 0,
+    multipleSpeakers: Boolean(attempt.multi_speaker),
   });
 
   await svc

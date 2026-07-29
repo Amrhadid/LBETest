@@ -275,6 +275,68 @@ export async function recordAttemptMeta(
 }
 
 /**
+ * Persist ID + selfie verification paths (#1) and mark the attempt verified.
+ * Ownership-checked; service-role write (candidates have no grant on these
+ * columns). Both images live in the private id-verification bucket.
+ */
+export async function saveIdVerification(
+  attemptId: string,
+  paths: { idPath: string; selfiePath: string },
+): Promise<ActionState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in." };
+  if (!(await assertOwnedInProgress(supabase, attemptId, user.id))) {
+    return { error: "This attempt is not active." };
+  }
+  const idPath = (paths.idPath ?? "").trim();
+  const selfiePath = (paths.selfiePath ?? "").trim();
+  // Paths must belong to this user (RLS convention: first segment = user id).
+  if (!idPath.startsWith(`${user.id}/`) || !selfiePath.startsWith(`${user.id}/`)) {
+    return { error: "Invalid image paths." };
+  }
+  const { error } = await createServiceRoleClient()
+    .from("attempts")
+    .update({
+      id_image_path: idPath,
+      selfie_path: selfiePath,
+      id_verified: true,
+    })
+    .eq("id", attemptId);
+  if (error) return { error: "Could not save your verification. Please retry." };
+  return { message: "verified" };
+}
+
+/**
+ * Flag that a continuous-recording stream (#2/#3/#4) has begun for the attempt.
+ * Called once per kind on its first uploaded chunk. Ownership-checked; service
+ * role. Best-effort.
+ */
+export async function markRecordingPresence(
+  attemptId: string,
+  which: { webcam?: boolean; mic?: boolean; screen?: boolean },
+): Promise<void> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+  if (!(await assertOwnedInProgress(supabase, attemptId, user.id))) return;
+
+  const patch: Record<string, boolean> = {};
+  if (which.webcam) patch.has_webcam_rec = true;
+  if (which.mic) patch.has_mic_rec = true;
+  if (which.screen) patch.has_screen_rec = true;
+  if (Object.keys(patch).length === 0) return;
+  await createServiceRoleClient()
+    .from("attempts")
+    .update(patch as never)
+    .eq("id", attemptId);
+}
+
+/**
  * Persist a room-scan object path (#6) after the client uploads the clip to the
  * private `room-scans` bucket. Ownership-checked; service-role write.
  */

@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { requireAdmin, requireStaff } from "@/lib/admin/guard";
 import { ACTIVE_EXAM_ID } from "@/lib/exam/config";
+import { writeAudit } from "@/lib/exam/audit.server";
 import type { Role } from "@/lib/supabase/types";
 
 export type AdminActionState = { error?: string; message?: string };
@@ -124,7 +125,7 @@ export interface ItemInput {
 }
 
 export async function saveItem(input: ItemInput): Promise<AdminActionState> {
-  await requireAdmin();
+  const me = await requireAdmin();
   const svc = createServiceRoleClient();
   const row = {
     exam_id: input.exam_id,
@@ -142,6 +143,12 @@ export async function saveItem(input: ItemInput): Promise<AdminActionState> {
     ? await svc.from("items").update(row).eq("id", input.id)
     : await svc.from("items").insert(row);
   if (error) return { error: `Could not save item: ${error.message}` };
+  await writeAudit(me, {
+    action: input.id ? "item.update" : "item.create",
+    targetType: "item",
+    targetId: input.id,
+    detail: { exam_id: input.exam_id, lbe_level: input.lbe_level, question_type: input.question_type },
+  });
   revalidatePath("/admin/library");
   return { message: "Saved." };
 }
@@ -210,7 +217,7 @@ export async function generateItemAudio(
 export async function saveItemsBulk(
   inputs: ItemInput[],
 ): Promise<AdminActionState & { count?: number }> {
-  await requireAdmin();
+  const me = await requireAdmin();
   if (!Array.isArray(inputs) || inputs.length === 0) {
     return { error: "No items to save." };
   }
@@ -230,6 +237,11 @@ export async function saveItemsBulk(
   // A single multi-row insert is atomic: any failure rolls back all rows.
   const { error } = await svc.from("items").insert(rows);
   if (error) return { error: `Could not save items: ${error.message}` };
+  await writeAudit(me, {
+    action: "item.bulk_create",
+    targetType: "item",
+    detail: { count: rows.length, exam_id: rows[0]?.exam_id, lbe_level: rows[0]?.lbe_level },
+  });
   revalidatePath("/admin/library");
   return { message: `Added ${rows.length} items.`, count: rows.length };
 }
@@ -291,13 +303,19 @@ export async function setCertificateStatus(
   id: string,
   status: "valid" | "revoked",
 ): Promise<AdminActionState> {
-  await requireAdmin();
+  const me = await requireAdmin();
   const svc = createServiceRoleClient();
   const { error } = await svc
     .from("certificates")
     .update({ status })
     .eq("id", id);
   if (error) return { error: "Could not update the certificate." };
+  await writeAudit(me, {
+    action: status === "revoked" ? "certificate.revoke" : "certificate.reinstate",
+    targetType: "certificate",
+    targetId: id,
+    detail: { status },
+  });
   revalidatePath("/admin/certificates");
   return { message: status === "revoked" ? "Revoked." : "Reinstated." };
 }
@@ -305,6 +323,42 @@ export async function setCertificateStatus(
 // ---------------------------------------------------------------------------
 // Exam credibility / trust
 // ---------------------------------------------------------------------------
+
+/** Record a human review decision on a flagged attempt (#8). */
+export async function reviewAttempt(
+  attemptId: string,
+  decision: "cleared" | "confirmed_violation",
+  note?: string,
+): Promise<AdminActionState> {
+  const me = await requireAdmin();
+  if (decision !== "cleared" && decision !== "confirmed_violation") {
+    return { error: "Invalid review decision." };
+  }
+  const reviewer = me.email ?? me.id;
+  const svc = createServiceRoleClient();
+  const { error } = await svc
+    .from("attempts")
+    .update({
+      review_status: decision,
+      review_note: (note ?? "").trim() || null,
+      reviewed_by: reviewer,
+      reviewed_at: new Date().toISOString(),
+    })
+    .eq("id", attemptId);
+  if (error) return { error: "Could not save the review decision." };
+
+  await writeAudit(me, {
+    action: "attempt.review",
+    targetType: "attempt",
+    targetId: attemptId,
+    detail: { decision, note: (note ?? "").trim() || undefined },
+  });
+  revalidatePath(`/admin/attempts/${attemptId}`);
+  revalidatePath("/admin/attempts");
+  return {
+    message: decision === "cleared" ? "Marked cleared." : "Marked as confirmed violation.",
+  };
+}
 
 /** Recompute + store an attempt's composite suspicion (trust) score. */
 export async function recomputeTrust(
@@ -337,7 +391,7 @@ function makeAccessCode(): string {
 export async function generateAccessCodes(
   count: number,
 ): Promise<AdminActionState> {
-  await requireAdmin();
+  const me = await requireAdmin();
   const n = Math.max(1, Math.min(200, Math.floor(count)));
   const svc = createServiceRoleClient();
 
@@ -358,6 +412,11 @@ export async function generateAccessCodes(
       return { error: "Could not generate codes." };
     }
   }
+  await writeAudit(me, {
+    action: "access_codes.generate",
+    targetType: "access_code",
+    detail: { requested: n, created },
+  });
   revalidatePath("/admin/access-codes");
   return { message: `Generated ${created} code${created === 1 ? "" : "s"}.` };
 }

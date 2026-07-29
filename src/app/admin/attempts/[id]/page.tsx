@@ -13,7 +13,14 @@ import { AdminHeader, StatCard, TableWrap } from "@/app/admin/ui";
 import { TrustBadge } from "@/app/admin/attempts/TrustBadge";
 import { RecomputeTrustButton } from "@/app/admin/attempts/[id]/RecomputeTrustButton";
 import { findDuplicateAnswers } from "@/lib/exam/trust.server";
-import { ROOM_SCAN_BUCKET } from "@/lib/exam/storage";
+import {
+  ROOM_SCAN_BUCKET,
+  ID_VERIFICATION_BUCKET,
+  ATTEMPT_RECORDINGS_BUCKET,
+  recordingPrefix,
+  type RecordingKind,
+} from "@/lib/exam/storage";
+import { ReviewControls } from "@/app/admin/attempts/[id]/ReviewControls";
 
 const TRUST_LABELS: Record<string, string> = {
   tabBlur: "Left the tab / window",
@@ -53,7 +60,7 @@ export default async function AttemptDetailPage({
 
   const { data: attempt } = await svc
     .from("attempts")
-    .select("id, user_id, exam_id, status, final_score, lbe_level, is_preview, started_at, submitted_at, created_at, access_code_id, trust_score, trust_breakdown, country, network, asn, is_datacenter, fingerprint, room_scan_path, violation_count")
+    .select("id, user_id, exam_id, status, final_score, lbe_level, is_preview, started_at, submitted_at, created_at, access_code_id, trust_score, trust_breakdown, country, network, asn, is_datacenter, fingerprint, room_scan_path, violation_count, id_verified, id_image_path, selfie_path, has_webcam_rec, has_mic_rec, has_screen_rec, no_face_count, multi_face_count, multi_speaker, review_status, review_note, reviewed_by, reviewed_at")
     .eq("id", id)
     .maybeSingle();
 
@@ -78,6 +85,44 @@ export default async function AttemptDetailPage({
     roomScanUrl = signed?.signedUrl ?? null;
   }
   const scanSkipped = Boolean(scanPath?.endsWith("room-scan-skipped"));
+
+  // ID + selfie signed URLs (#1) for the manual side-by-side compare.
+  const signOne = async (bucket: string, path: string | null) => {
+    if (!path) return null;
+    const { data } = await svc.storage.from(bucket).createSignedUrl(path, 60 * 10);
+    return data?.signedUrl ?? null;
+  };
+  const [idUrl, selfieUrl] = await Promise.all([
+    signOne(ID_VERIFICATION_BUCKET, attempt.id_image_path),
+    signOne(ID_VERIFICATION_BUCKET, attempt.selfie_path),
+  ]);
+
+  // Continuous recordings (#2/#3/#4): list chunks per kind, sign the first as a
+  // playable sample (signing every 30s chunk of a 1-hr attempt is impractical).
+  const recKinds: { kind: RecordingKind; present: boolean; label: string }[] = [
+    { kind: "webcam", present: Boolean(attempt.has_webcam_rec), label: "Webcam" },
+    { kind: "mic", present: Boolean(attempt.has_mic_rec), label: "Microphone" },
+    { kind: "screen", present: Boolean(attempt.has_screen_rec), label: "Screen" },
+  ];
+  const recordings = await Promise.all(
+    recKinds.map(async (r) => {
+      if (!r.present) return { ...r, count: 0, firstUrl: null as string | null };
+      const { data: objs } = await svc.storage
+        .from(ATTEMPT_RECORDINGS_BUCKET)
+        .list(recordingPrefix(attempt.user_id, attempt.id, r.kind), {
+          limit: 1000,
+          sortBy: { column: "name", order: "asc" },
+        });
+      const list = objs ?? [];
+      const firstUrl = list[0]
+        ? await signOne(
+            ATTEMPT_RECORDINGS_BUCKET,
+            `${recordingPrefix(attempt.user_id, attempt.id, r.kind)}/${list[0].name}`,
+          )
+        : null;
+      return { ...r, count: list.length, firstUrl };
+    }),
+  );
 
   const breakdown = (attempt.trust_breakdown ?? {}) as Record<string, number>;
   const breakdownRows = Object.entries(breakdown).filter(([, v]) => Number(v) > 0);
@@ -227,6 +272,65 @@ export default async function AttemptDetailPage({
             </div>
           )}
 
+          {/* ID + selfie (#1): manual side-by-side compare */}
+          <div className="mt-5">
+            <p className="mb-2 text-sm font-medium text-charcoal">
+              Identity verification{" "}
+              {attempt.id_verified ? (
+                <span className="text-emerald-700">✓ submitted</span>
+              ) : (
+                <span className="text-red-700">✗ not completed</span>
+              )}
+            </p>
+            {(idUrl || selfieUrl) ? (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <figure>
+                  <figcaption className="mb-1 text-xs text-muted-foreground">ID document</figcaption>
+                  {idUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={idUrl} alt="ID document" className="w-full rounded-lg border border-gold/20" />
+                  ) : <p className="text-xs text-muted-foreground">—</p>}
+                </figure>
+                <figure>
+                  <figcaption className="mb-1 text-xs text-muted-foreground">Selfie</figcaption>
+                  {selfieUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={selfieUrl} alt="Selfie" className="w-full rounded-lg border border-gold/20" />
+                  ) : <p className="text-xs text-muted-foreground">—</p>}
+                </figure>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No ID/selfie captured.</p>
+            )}
+          </div>
+
+          {/* Continuous recordings (#2/#3/#4) */}
+          <div className="mt-5">
+            <p className="mb-2 text-sm font-medium text-charcoal">Continuous recordings</p>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {recordings.map((r) => (
+                <div key={r.kind} className="rounded-lg border border-gold/15 p-3">
+                  <p className="text-sm font-medium text-charcoal">{r.label}</p>
+                  {r.present ? (
+                    <>
+                      <p className="text-xs text-muted-foreground">{r.count} segment{r.count === 1 ? "" : "s"}</p>
+                      {r.firstUrl && (
+                        r.kind === "mic" ? (
+                          <audio src={r.firstUrl} controls className="mt-2 w-full" />
+                        ) : (
+                          <video src={r.firstUrl} controls className="mt-2 w-full rounded border border-gold/20" />
+                        )
+                      )}
+                      <p className="mt-1 text-[11px] text-muted-foreground">First segment shown; all segments in storage.</p>
+                    </>
+                  ) : (
+                    <p className="text-xs text-amber-700">Not recorded (declined or unavailable).</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Room scan (#6) */}
           <div className="mt-5">
             <p className="mb-2 text-sm font-medium text-charcoal">Room scan</p>
@@ -238,6 +342,15 @@ export default async function AttemptDetailPage({
               <p className="text-sm text-muted-foreground">No room scan recorded.</p>
             )}
           </div>
+
+          {/* Human review workflow (#8) */}
+          <ReviewControls
+            attemptId={attempt.id}
+            current={attempt.review_status}
+            note={attempt.review_note}
+            reviewer={attempt.reviewed_by}
+            reviewedAt={attempt.reviewed_at}
+          />
         </section>
       )}
 

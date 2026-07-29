@@ -18,6 +18,7 @@ import {
   type QuestionType,
   type LbeLevel,
 } from "@/lib/exam/types";
+import { seededShuffle } from "@/lib/exam/shuffle";
 import { StartGate } from "@/app/start/StartGate";
 import { ExamRunner, type RunnerSection } from "@/app/start/ExamRunner";
 
@@ -29,16 +30,24 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 /** Map a raw items row to a client-safe ExamItem (answer_key/rubric stripped). */
-function toClientItem(row: Record<string, unknown>): ExamItem {
+function toClientItem(row: Record<string, unknown>, attemptId: string): ExamItem {
+  const id = String(row.id);
+  const qtype = row.question_type as QuestionType;
+  let options = (row.options as ItemOption[] | null) ?? null;
+  // MCQ answer-order shuffle (#7, types 1 & 2): deterministic per attempt+item,
+  // so the order is stable across reloads but differs between candidates.
+  if (options && (qtype === 1 || qtype === 2)) {
+    options = seededShuffle(options, `${attemptId}:${id}:opts`);
+  }
   return {
-    id: String(row.id),
+    id,
     exam_id: (row.exam_id as string | null) ?? null,
     source_type: (row.source_type as SourceType | null) ?? null,
-    question_type: row.question_type as QuestionType,
+    question_type: qtype,
     lbe_level: row.lbe_level as LbeLevel,
     prompt: (row.prompt as string | null) ?? null,
     media_url: (row.media_url as string | null) ?? null,
-    options: (row.options as ItemOption[] | null) ?? null,
+    options,
     // Never send grading data to the candidate.
     answer_key: null,
     rubric: null,
@@ -47,7 +56,7 @@ function toClientItem(row: Record<string, unknown>): ExamItem {
 }
 
 /** Load all active items for the exam, grouped into ordered sections 1..5. */
-async function loadSections(): Promise<RunnerSection[]> {
+async function loadSections(attemptId: string): Promise<RunnerSection[]> {
   const svc = createServiceRoleClient();
   const { data } = await svc
     .from("items")
@@ -62,10 +71,15 @@ async function loadSections(): Promise<RunnerSection[]> {
 
   const byLevel = new Map<LbeLevel, ExamItem[]>();
   for (const row of data ?? []) {
-    const item = toClientItem(row as Record<string, unknown>);
+    const item = toClientItem(row as Record<string, unknown>, attemptId);
     const list = byLevel.get(item.lbe_level) ?? [];
     list.push(item);
     byLevel.set(item.lbe_level, list);
+  }
+  // Randomized item order per attempt WITHIN each section (#7). Deterministic
+  // from the attempt id so a resume shows the same order.
+  for (const [level, list] of byLevel) {
+    byLevel.set(level, seededShuffle(list, `${attemptId}:order:${level}`));
   }
 
   // Listening audio lives in a private bucket; mint a short-lived signed URL
@@ -100,7 +114,7 @@ export default async function StartPage() {
   // Latest attempts for this user + exam (RLS: own rows only).
   const { data: attempts } = await supabase
     .from("attempts")
-    .select("id, status, access_code_id, created_at, started_at, is_preview, room_scan_path")
+    .select("id, status, access_code_id, created_at, started_at, is_preview, room_scan_path, id_verified")
     .eq("user_id", user.id)
     .eq("exam_id", ACTIVE_EXAM_ID)
     .order("created_at", { ascending: false });
@@ -125,7 +139,7 @@ export default async function StartPage() {
     const [{ data: examRow }, sections, { data: responses }, { data: events }] =
       await Promise.all([
         svc.from("exams").select("config").eq("id", ACTIVE_EXAM_ID).maybeSingle(),
-        loadSections(),
+        loadSections(inProgress.id),
         supabase
           .from("responses")
           .select("item_id, answer")
@@ -214,6 +228,7 @@ export default async function StartPage() {
         config={publicConfig}
         isPreview={Boolean(inProgress.is_preview)}
         initialRoomScanPath={inProgress.room_scan_path ?? null}
+        initialIdVerified={Boolean(inProgress.id_verified)}
       />
     );
   }

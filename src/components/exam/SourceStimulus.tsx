@@ -29,8 +29,13 @@ export function SourceStimulus({
 
   return (
     <figure
+      // Copy-block (#7): the source/passage text can't be selected, copied, or
+      // right-clicked out. Deters pasting the stimulus into an outside tool.
+      onCopy={(e) => e.preventDefault()}
+      onCut={(e) => e.preventDefault()}
+      onContextMenu={(e) => e.preventDefault()}
       className={cn(
-        "rounded-2xl border border-gold/20 bg-card p-5 shadow-card sm:p-6",
+        "select-none rounded-2xl border border-gold/20 bg-card p-5 shadow-card sm:p-6",
         className,
       )}
     >

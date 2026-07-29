@@ -14,6 +14,10 @@ export interface TrustWeights {
   duplicateAnswer: number; // per open-ended answer near-identical to another candidate
   datacenter: number; // one-off: attempt came from a datacenter/hosting IP
   sharedFingerprint: number; // one-off: device fingerprint seen on other candidates
+  idMissing: number; // one-off: ID/selfie verification not completed
+  noFace: number; // per webcam sample where no face was present
+  multipleFaces: number; // per webcam sample with more than one face
+  multipleSpeakers: number; // one-off: >1 distinct speaker heard in voice answers
 }
 
 /** Adjustable weights. Tune here. */
@@ -25,9 +29,16 @@ export const DEFAULT_TRUST_WEIGHTS: TrustWeights = {
   duplicateAnswer: 20,
   datacenter: 15,
   sharedFingerprint: 25,
+  idMissing: 15,
+  noFace: 6,
+  multipleFaces: 20,
+  multipleSpeakers: 20,
 };
 
 export const TRUST_MAX = 100;
+
+/** At/above this score an attempt is treated as "flagged" / high-suspicion. */
+export const FLAG_THRESHOLD = 40;
 
 export interface TrustSignals {
   tabBlur: number;
@@ -37,6 +48,10 @@ export interface TrustSignals {
   duplicateAnswers: number;
   datacenter: boolean;
   sharedFingerprint: boolean;
+  idMissing: boolean;
+  noFace: number;
+  multipleFaces: number;
+  multipleSpeakers: boolean;
 }
 
 export interface TrustResult {
@@ -56,6 +71,10 @@ export function computeTrustScore(
     duplicateAnswers: s.duplicateAnswers * w.duplicateAnswer,
     datacenter: s.datacenter ? w.datacenter : 0,
     sharedFingerprint: s.sharedFingerprint ? w.sharedFingerprint : 0,
+    idMissing: s.idMissing ? w.idMissing : 0,
+    noFace: s.noFace * w.noFace,
+    multipleFaces: s.multipleFaces * w.multipleFaces,
+    multipleSpeakers: s.multipleSpeakers ? w.multipleSpeakers : 0,
   };
   const raw = Object.values(breakdown).reduce((a, b) => a + b, 0);
   return { score: Math.min(TRUST_MAX, Math.round(raw)), breakdown };
