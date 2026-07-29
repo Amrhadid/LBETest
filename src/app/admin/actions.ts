@@ -303,6 +303,27 @@ export async function setCertificateStatus(
 }
 
 // ---------------------------------------------------------------------------
+// Exam credibility / trust
+// ---------------------------------------------------------------------------
+
+/** Recompute + store an attempt's composite suspicion (trust) score. */
+export async function recomputeTrust(
+  attemptId: string,
+): Promise<AdminActionState> {
+  await requireAdmin();
+  try {
+    const { computeAndStoreTrust } = await import("@/lib/exam/trust.server");
+    const result = await computeAndStoreTrust(attemptId);
+    revalidatePath(`/admin/attempts/${attemptId}`);
+    revalidatePath("/admin/attempts");
+    if (!result) return { message: "Nothing to score (preview or missing attempt)." };
+    return { message: `Trust score updated: ${result.score}.` };
+  } catch {
+    return { error: "Could not recompute the trust score." };
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Access codes
 // ---------------------------------------------------------------------------
 

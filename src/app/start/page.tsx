@@ -100,7 +100,7 @@ export default async function StartPage() {
   // Latest attempts for this user + exam (RLS: own rows only).
   const { data: attempts } = await supabase
     .from("attempts")
-    .select("id, status, access_code_id, created_at, started_at")
+    .select("id, status, access_code_id, created_at, started_at, is_preview, room_scan_path")
     .eq("user_id", user.id)
     .eq("exam_id", ACTIVE_EXAM_ID)
     .order("created_at", { ascending: false });
@@ -212,6 +212,8 @@ export default async function StartPage() {
         initialResponses={initialResponses}
         initialSectionIndex={initialSectionIndex}
         config={publicConfig}
+        isPreview={Boolean(inProgress.is_preview)}
+        initialRoomScanPath={inProgress.room_scan_path ?? null}
       />
     );
   }

@@ -10,6 +10,20 @@ import { requireAdmin } from "@/lib/admin/guard";
 import { emailMap } from "@/lib/admin/users";
 import { levelName } from "@/lib/certificates/eligibility";
 import { AdminHeader, StatCard, TableWrap } from "@/app/admin/ui";
+import { TrustBadge } from "@/app/admin/attempts/TrustBadge";
+import { RecomputeTrustButton } from "@/app/admin/attempts/[id]/RecomputeTrustButton";
+import { findDuplicateAnswers } from "@/lib/exam/trust.server";
+import { ROOM_SCAN_BUCKET } from "@/lib/exam/storage";
+
+const TRUST_LABELS: Record<string, string> = {
+  tabBlur: "Left the tab / window",
+  fullscreenExit: "Exited fullscreen",
+  violations: "Recorded violations",
+  fastSections: "Sections finished implausibly fast",
+  duplicateAnswers: "Answers near-identical to other candidates",
+  datacenter: "Datacenter / hosting IP",
+  sharedFingerprint: "Device fingerprint shared with others",
+};
 
 export const metadata: Metadata = { title: "Admin — Attempt detail" };
 
@@ -39,19 +53,34 @@ export default async function AttemptDetailPage({
 
   const { data: attempt } = await svc
     .from("attempts")
-    .select("id, user_id, exam_id, status, final_score, lbe_level, is_preview, started_at, submitted_at, created_at, access_code_id")
+    .select("id, user_id, exam_id, status, final_score, lbe_level, is_preview, started_at, submitted_at, created_at, access_code_id, trust_score, trust_breakdown, country, network, asn, is_datacenter, fingerprint, room_scan_path, violation_count")
     .eq("id", id)
     .maybeSingle();
 
   if (!attempt) notFound();
 
-  const [{ data: events }, { data: responses }, emails, { data: exam }] =
+  const [{ data: events }, { data: responses }, emails, { data: exam }, dups] =
     await Promise.all([
       svc.from("attempt_events").select("id, type, payload, at").eq("attempt_id", id).order("at", { ascending: true }),
       svc.from("responses").select("id, item_id, grade_status, is_correct").eq("attempt_id", id),
       emailMap(),
       svc.from("exams").select("title").eq("id", attempt.exam_id ?? "").maybeSingle(),
+      attempt.is_preview ? Promise.resolve([]) : findDuplicateAnswers(svc, id),
     ]);
+
+  // A real room-scan clip (not the skip marker) gets a short-lived signed URL.
+  let roomScanUrl: string | null = null;
+  const scanPath = attempt.room_scan_path;
+  if (scanPath && !scanPath.endsWith("room-scan-skipped")) {
+    const { data: signed } = await svc.storage
+      .from(ROOM_SCAN_BUCKET)
+      .createSignedUrl(scanPath, 60 * 10);
+    roomScanUrl = signed?.signedUrl ?? null;
+  }
+  const scanSkipped = Boolean(scanPath?.endsWith("room-scan-skipped"));
+
+  const breakdown = (attempt.trust_breakdown ?? {}) as Record<string, number>;
+  const breakdownRows = Object.entries(breakdown).filter(([, v]) => Number(v) > 0);
 
   const blurCount = (events ?? []).filter((e) => e.type === "tab_blur").length;
   const fsExitCount = (events ?? []).filter((e) => e.type === "fullscreen_exit").length;
@@ -118,6 +147,98 @@ export default async function AttemptDetailPage({
             Review the timeline below.
           </p>
         </div>
+      )}
+
+      {/* ---- Exam credibility / trust ------------------------------------ */}
+      {!attempt.is_preview && (
+        <section className="mt-8 rounded-xl border border-gold/20 bg-white/50 p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="font-serif-display text-2xl text-charcoal">
+              Exam credibility
+            </h2>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-muted-foreground">Suspicion score:</span>
+              <TrustBadge score={attempt.trust_score} />
+              <RecomputeTrustButton attemptId={attempt.id} />
+            </div>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Composite of all signals below. Higher = more suspicious. Admin-only —
+            never shown to the candidate.
+          </p>
+
+          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            <StatCard
+              label="Origin"
+              value={attempt.country ?? "Unknown"}
+              hint={attempt.is_datacenter ? "Datacenter / hosting IP" : (attempt.network ?? "—")}
+            />
+            <StatCard
+              label="Network (ASN)"
+              value={attempt.asn ? `AS${attempt.asn}` : "—"}
+              hint={attempt.network ?? undefined}
+            />
+            <StatCard
+              label="Device fingerprint"
+              value={attempt.fingerprint ? attempt.fingerprint.slice(0, 10) : "—"}
+              hint={attempt.fingerprint ? "Flagged if shared across candidates" : "Not captured"}
+            />
+          </div>
+
+          {/* Score breakdown */}
+          {breakdownRows.length > 0 ? (
+            <div className="mt-4">
+              <p className="mb-2 text-sm font-medium text-charcoal">Score breakdown</p>
+              <ul className="space-y-1 text-sm">
+                {breakdownRows.map(([k, v]) => (
+                  <li key={k} className="flex items-center justify-between rounded border border-gold/10 px-3 py-1.5">
+                    <span className="text-muted-foreground">{TRUST_LABELS[k] ?? k}</span>
+                    <span className="font-semibold tabular-nums text-amber-800">+{v}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <p className="mt-4 text-sm text-muted-foreground">
+              {attempt.trust_score == null
+                ? "Not yet scored — recompute to generate the breakdown."
+                : "No suspicious signals contributed to the score."}
+            </p>
+          )}
+
+          {/* Duplicate-answer findings (#3) */}
+          {dups.length > 0 && (
+            <div className="mt-5">
+              <p className="mb-2 text-sm font-medium text-charcoal">
+                Duplicate open-ended answers ({dups.length})
+              </p>
+              <ul className="space-y-1 text-sm">
+                {dups.map((d, i) => (
+                  <li key={i} className="flex flex-wrap items-center justify-between gap-2 rounded border border-red-200 bg-red-50 px-3 py-1.5 text-red-800">
+                    <span className="font-mono text-xs">item {d.itemId.slice(0, 8)}</span>
+                    <span>{Math.round(d.similarity * 100)}% similar to{" "}
+                      <Link href={`/admin/attempts/${d.otherAttemptId}`} className="underline">
+                        another attempt
+                      </Link>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Room scan (#6) */}
+          <div className="mt-5">
+            <p className="mb-2 text-sm font-medium text-charcoal">Room scan</p>
+            {roomScanUrl ? (
+              <video src={roomScanUrl} controls className="max-w-md rounded-lg border border-gold/20" />
+            ) : scanSkipped ? (
+              <p className="text-sm text-amber-700">Candidate skipped the room scan (no camera).</p>
+            ) : (
+              <p className="text-sm text-muted-foreground">No room scan recorded.</p>
+            )}
+          </div>
+        </section>
       )}
 
       <div className="mt-4 grid gap-4 sm:grid-cols-4">

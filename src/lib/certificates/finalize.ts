@@ -140,6 +140,16 @@ export async function finalizeAttempt(
     })
     .eq("id", attemptId);
 
+  // Exam-credibility trust score (#1): compute + store the composite suspicion
+  // score from all signals now that the attempt is resolved. Admin-only; never
+  // shown to the candidate. Best-effort — never blocks finalization/certifying.
+  try {
+    const { computeAndStoreTrust } = await import("@/lib/exam/trust.server");
+    await computeAndStoreTrust(attemptId);
+  } catch {
+    // Trust scoring is advisory; a failure must not fail finalization.
+  }
+
   // No certified level → no credential, only the result record above.
   if (level < 1) {
     return { finalized: true, level: 0, score, certificateId: null };
