@@ -35,7 +35,27 @@ export async function redeemAccessCode(
   if (!user) redirect("/login?redirectedFrom=/start");
 
   const { error } = await supabase.rpc("redeem_access_code", { p_code: code });
-  if (error) return { error: redeemErrorMessage(error.message) };
+  if (error) {
+    // Idempotency: a slow connection can retry the Server Action, or the user
+    // can double-submit. The FIRST call redeems the code (status→used,
+    // redeemed_by=this user); a SECOND call then hits the now-used code and the
+    // RPC raises `code_not_available`. That's a false error — the user IS
+    // entitled. So on that specific error, check whether THIS user already owns
+    // the code and, if so, treat the redemption as successful.
+    if (error.message.includes("code_not_available")) {
+      const { data: mine } = await supabase
+        .from("access_codes")
+        .select("id")
+        .eq("code", code)
+        .eq("redeemed_by", user.id)
+        .maybeSingle();
+      if (mine) {
+        revalidatePath("/start");
+        return { message: "Code accepted." };
+      }
+    }
+    return { error: redeemErrorMessage(error.message) };
+  }
 
   revalidatePath("/start");
   return { message: "Code accepted." };
