@@ -333,6 +333,7 @@ export interface Database {
           user_id: string;
           lbe_level: number | null;
           score: number | null;
+          percentile_rank: number | null;
           issued_at: string | null;
           expires_at: string | null;
           status: CertificateStatus;
@@ -346,6 +347,7 @@ export interface Database {
           user_id: string;
           lbe_level?: number | null;
           score?: number | null;
+          percentile_rank?: number | null;
           issued_at?: string | null;
           expires_at?: string | null;
           status?: CertificateStatus;

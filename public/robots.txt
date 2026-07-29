@@ -1,0 +1,21 @@
+# Allow all standard crawlers
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /admin
+
+# AI assistants / crawlers — explicitly allowed
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /

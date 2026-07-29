@@ -26,8 +26,8 @@ export function Hero() {
             <h1 className="font-serif-display mt-5 text-[3rem] leading-[0.96] text-charcoal sm:text-7xl lg:text-[5.1rem]">
               The world&rsquo;s first Business English test
             </h1>
-            <p className="mt-7 max-w-md border-l border-gold/40 pl-5 text-xl text-muted-foreground first-letter:font-serif first-letter:text-4xl first-letter:text-gold">
-              LBE3 means you&rsquo;re{" "}
+            <p className="mt-7 max-w-md border-l border-gold/40 pl-5 text-xl text-muted-foreground">
+              <span className="font-serif-display text-gold">LBE3</span> means you&rsquo;re{" "}
               <span className="font-serif-display italic text-charcoal">
                 &ldquo;Qualified&rdquo;
               </span>
