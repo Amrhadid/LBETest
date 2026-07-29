@@ -35,7 +35,7 @@ import {
 } from "@/lib/certificates/integrity";
 
 export const CERTIFICATES_BUCKET = "certificates";
-const CERT_VALIDITY_YEARS = 2;
+const CERT_VALIDITY_YEARS = 1;
 
 export interface FinalizeResult {
   finalized: boolean;
@@ -129,6 +129,7 @@ export async function finalizeAttempt(
   const level = certifiedLevel(tallies);
   const score = totalCorrect(tallies);
   const totalItems = tallies.reduce((s, t) => s + t.total, 0);
+  const scoreOutOf100 = totalItems > 0 ? Math.round((score / totalItems) * 100) : 0;
 
   // Authoritative result on the attempt (the internal result record).
   await svc
@@ -239,10 +240,10 @@ export async function finalizeAttempt(
       candidateName: profile?.full_name ?? "Candidate",
       level,
       levelName: levelName(level),
-      score,
-      totalItems,
+      score: scoreOutOf100,
       certCode,
       issuedAt,
+      expiresAt,
       verifyUrl: verifyUrlFor(certCode),
     });
 
