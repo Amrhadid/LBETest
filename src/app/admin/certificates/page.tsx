@@ -6,6 +6,7 @@ import { emailMap } from "@/lib/admin/users";
 import { CERTIFICATES_BUCKET } from "@/lib/certificates/finalize";
 import { AdminHeader, TableWrap } from "@/app/admin/ui";
 import { CertActions } from "@/app/admin/certificates/CertActions";
+import { CertificatePreview } from "@/app/admin/certificates/CertificatePreview";
 
 export const metadata: Metadata = { title: "Admin — Certificates" };
 
@@ -40,6 +41,7 @@ export default async function AdminCertificatesPage() {
         eyebrow="Admin"
         title="Certificates"
         description="Issued certificates. View or download the PDF, or revoke a credential."
+        actions={<CertificatePreview />}
       />
 
       <TableWrap>

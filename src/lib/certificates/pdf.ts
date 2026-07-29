@@ -16,7 +16,6 @@ export interface CertificatePdfInput {
   levelName: string;
   /** Percentage score, from 0 through 100. */
   score: number;
-  percentileRank: number;
   certCode: string;
   issuedAt: Date;
   expiresAt: Date;
@@ -35,12 +34,6 @@ function fitted(font: PDFFont, text: string, maxWidth: number, preferred: number
 
 function shortDate(date: Date) {
   return new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" }).format(date);
-}
-
-function ordinal(value: number) {
-  const n = Math.max(0, Math.min(100, Math.round(value)));
-  const suffix = n % 100 >= 11 && n % 100 <= 13 ? "th" : n % 10 === 1 ? "st" : n % 10 === 2 ? "nd" : n % 10 === 3 ? "rd" : "th";
-  return { n, suffix };
 }
 
 function drawQr(page: PDFPage, url: string, x: number, y: number, box: number) {
@@ -124,18 +117,24 @@ export async function generateCertificatePdf(input: CertificatePdfInput): Promis
   centered(page, reg, "Demonstrating strong Business English skills", 377, 8, BODY);
   centered(page, reg, "in real workplace situations.", 365, 8, BODY);
 
-  // Score and percentile panel; Helvetica digits use stable tabular widths.
+  // Score and fixed competency panel; Helvetica digits use stable tabular widths.
   page.drawRectangle({ x:108,y:276,width:379,height:75,color:rgb(1,.995,.98),borderColor:GOLD,borderWidth:.7 });
   page.drawLine({ start:{x:298,y:289},end:{x:298,y:339},thickness:.6,color:GOLD });
   page.drawText("YOUR SCORE",{x:180,y:329,size:8,font:bold,color:TEAL});
   page.drawText(String(Math.round(input.score)).padStart(2,"0"),{x:180,y:292,size:31,font:bold,color:INK});
   page.drawText("/100",{x:239,y:294,size:15,font:reg,color:INK});
-  const rank=ordinal(input.percentileRank);
-  page.drawText("PERCENTILE",{x:323,y:329,size:8,font:bold,color:TEAL});
-  page.drawText(String(rank.n),{x:323,y:292,size:31,font:bold,color:INK});
-  page.drawText(rank.suffix,{x:361,y:310,size:9,font:bold,color:INK});
-  page.drawText(`You scored higher than ${rank.n}%`,{x:323,y:283,size:6.5,font:reg,color:BODY});
-  page.drawText("of test takers worldwide.",{x:323,y:274,size:6.5,font:reg,color:BODY});
+  page.drawText("CORE COMPETENCIES EVALUATED",{x:316,y:329,size:7.2,font:bold,color:TEAL});
+  const competencies = [
+    { x: 316, y: 311, label: "Reading" },
+    { x: 397, y: 311, label: "Listening" },
+    { x: 316, y: 296, label: "Writing" },
+    { x: 397, y: 296, label: "Speaking" },
+    { x: 316, y: 281, label: "Business Knowledge" },
+  ];
+  for (const competency of competencies) {
+    page.drawCircle({ x: competency.x + 3, y: competency.y + 3, size: 2.2, color: GOLD });
+    page.drawText(competency.label,{x:competency.x+11,y:competency.y,size:7.5,font:bold,color:INK});
+  }
 
   const info=[{x:130,label:"DATE",a:shortDate(input.issuedAt)},{x:244,label:"CERTIFICATE ID",a:input.certCode},{x:360,label:"VALIDITY",a:"1 Year",b:`(Until ${shortDate(input.expiresAt)})`},{x:469,label:"STATUS",a:"Verified"}];
   for(const item of info){centeredAt(page,bold,item.label,item.x,239,7,TEAL);centeredAt(page,reg,item.a,item.x,223,fitted(reg,item.a,98,8.5,6.5),BODY);if(item.b)centeredAt(page,reg,item.b,item.x,211,7,BODY)}

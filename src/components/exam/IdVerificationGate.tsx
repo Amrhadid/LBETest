@@ -6,6 +6,7 @@ import { IdCard, Camera, Loader2, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { uploadIdImage } from "@/lib/exam/storage";
+import { cameraErrorMessage } from "@/lib/exam/media";
 import { saveIdVerification } from "@/app/start/actions";
 
 /**
@@ -25,8 +26,8 @@ export function IdVerificationGate({
   userId: string;
   attemptId: string;
   onDone: () => void;
-  /** Acquire (once) or return the shared camera+mic stream. */
-  ensureCamera: () => Promise<MediaStream | null>;
+  /** Acquire (once) or return the shared camera+mic stream, plus any error. */
+  ensureCamera: () => Promise<{ stream: MediaStream | null; error?: unknown }>;
 }) {
   const [idFile, setIdFile] = React.useState<File | null>(null);
   const [idPreview, setIdPreview] = React.useState<string>("");
@@ -53,16 +54,17 @@ export function IdVerificationGate({
   };
 
   const enableCam = async () => {
-    const s = await ensureCamera();
-    if (!s) {
-      setErr("We couldn't access your camera for the selfie.");
+    const { stream, error } = await ensureCamera();
+    if (!stream) {
+      setErr(cameraErrorMessage(error));
       return;
     }
+    setErr("");
     setCamOn(true);
     if (videoRef.current) {
       // Show only the video track in the preview.
-      const v = s.getVideoTracks()[0];
-      videoRef.current.srcObject = v ? new MediaStream([v]) : s;
+      const v = stream.getVideoTracks()[0];
+      videoRef.current.srcObject = v ? new MediaStream([v]) : stream;
       await videoRef.current.play().catch(() => {});
     }
   };

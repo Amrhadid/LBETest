@@ -98,27 +98,41 @@ export function ExamRunner({
 
   // Shared camera+mic stream: acquired ONCE (ID step) and reused by the room
   // scan and continuous recording, so the candidate grants camera/mic once.
+  // Returns the real failure so the UI can explain WHY (site blocked, camera in
+  // use, no device, insecure context) instead of a generic message.
   const cameraRef = React.useRef<MediaStream | null>(null);
-  const ensureCamera = React.useCallback(async (): Promise<MediaStream | null> => {
-    if (cameraRef.current) return cameraRef.current;
+  const ensureCamera = React.useCallback(async (): Promise<{
+    stream: MediaStream | null;
+    error?: unknown;
+  }> => {
+    if (cameraRef.current) return { stream: cameraRef.current };
+    if (
+      typeof navigator === "undefined" ||
+      !navigator.mediaDevices?.getUserMedia
+    ) {
+      return { stream: null, error: { name: "SecurityError" } };
+    }
     const constraints = { width: 640, height: 480, frameRate: 10 };
     try {
       cameraRef.current = await navigator.mediaDevices.getUserMedia({
         video: constraints,
         audio: true,
       });
-    } catch {
-      // Mic may be unavailable/denied — fall back to camera-only so the ID
-      // selfie (a hard block) can still be captured. Missing mic is flagged.
+      return { stream: cameraRef.current };
+    } catch (errAV) {
+      // Camera+mic failed. Retry camera-only so a blocked/absent MIC alone
+      // doesn't stop the ID selfie (a hard block). If THIS also fails, the
+      // camera itself is the problem — return that error to explain it.
       try {
         cameraRef.current = await navigator.mediaDevices.getUserMedia({
           video: constraints,
         });
-      } catch {
+        return { stream: cameraRef.current };
+      } catch (errVideo) {
         cameraRef.current = null;
+        return { stream: null, error: errVideo ?? errAV };
       }
     }
-    return cameraRef.current;
   }, []);
   // Stop the shared camera when the runner unmounts (belt-and-suspenders; the
   // capture hook also stops it at submit).
@@ -428,7 +442,7 @@ export function ExamRunner({
               setStartingCapture(true);
               // Reuse the shared camera+mic stream (already granted at the ID
               // step); this only adds the screen-share prompt.
-              const cam = await ensureCamera();
+              const { stream: cam } = await ensureCamera();
               await capture.start(cam);
               setStartingCapture(false);
               setCaptureStarted(true);

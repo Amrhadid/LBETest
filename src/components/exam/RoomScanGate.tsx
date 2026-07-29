@@ -6,6 +6,7 @@ import { Camera, Loader2, VideoOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { uploadRoomScan } from "@/lib/exam/storage";
+import { cameraErrorMessage } from "@/lib/exam/media";
 import { saveRoomScan } from "@/app/start/actions";
 
 const SCAN_SECONDS = 6;
@@ -28,7 +29,7 @@ export function RoomScanGate({
   attemptId: string;
   onDone: () => void;
   /** Return the shared camera+mic stream (already granted at the ID step). */
-  ensureCamera: () => Promise<MediaStream | null>;
+  ensureCamera: () => Promise<{ stream: MediaStream | null; error?: unknown }>;
 }) {
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
   const streamRef = React.useRef<MediaStream | null>(null);
@@ -48,9 +49,9 @@ export function RoomScanGate({
   React.useEffect(() => () => detachPreview(), [detachPreview]);
 
   const enableCamera = React.useCallback(async () => {
-    const stream = await ensureCamera();
+    const { stream, error } = await ensureCamera();
     if (!stream) {
-      setErrMsg("We couldn't access your camera.");
+      setErrMsg(cameraErrorMessage(error));
       setPhase("error");
       return;
     }
