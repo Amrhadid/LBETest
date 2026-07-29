@@ -29,6 +29,7 @@ import {
   type SectionTally,
 } from "@/lib/certificates/eligibility";
 import { generateCertificatePdf } from "@/lib/certificates/pdf";
+import { loadCertificateTemplate } from "@/lib/certificates/template.server";
 import {
   certificateCanonical,
   computeIssueHash,
@@ -236,16 +237,20 @@ export async function finalizeAttempt(
 
   // Generate the PDF and store it privately; persist its object path.
   try {
-    const pdf = await generateCertificatePdf({
-      candidateName: profile?.full_name ?? "Candidate",
-      level,
-      levelName: levelName(level),
-      score: scoreOutOf100,
-      certCode,
-      issuedAt,
-      expiresAt,
-      verifyUrl: verifyUrlFor(certCode),
-    });
+    const template = await loadCertificateTemplate();
+    const pdf = await generateCertificatePdf(
+      {
+        candidateName: profile?.full_name ?? "Candidate",
+        level,
+        levelName: levelName(level),
+        score: scoreOutOf100,
+        certCode,
+        issuedAt,
+        expiresAt,
+        verifyUrl: verifyUrlFor(certCode),
+      },
+      template,
+    );
 
     const path = `${attempt.user_id}/${certCode}.pdf`;
     const { error: upErr } = await svc.storage

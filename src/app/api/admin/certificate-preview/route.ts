@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generateCertificatePdf } from "@/lib/certificates/pdf";
 import { verifyUrlFor } from "@/lib/certificates/finalize";
+import { loadCertificateTemplate } from "@/lib/certificates/template.server";
 import { levelName } from "@/lib/certificates/eligibility";
 
 export const dynamic = "force-dynamic";
@@ -43,16 +44,20 @@ export async function GET(request: Request) {
   expiresAt.setFullYear(expiresAt.getFullYear() + 1);
 
   try {
-    const pdf = await generateCertificatePdf({
-      candidateName: "Sample Candidate",
-      level,
-      levelName: levelName(level),
-      score,
-      certCode,
-      issuedAt,
-      expiresAt,
-      verifyUrl: verifyUrlFor(certCode),
-    });
+    const template = await loadCertificateTemplate();
+    const pdf = await generateCertificatePdf(
+      {
+        candidateName: "Sample Candidate",
+        level,
+        levelName: levelName(level),
+        score,
+        certCode,
+        issuedAt,
+        expiresAt,
+        verifyUrl: verifyUrlFor(certCode),
+      },
+      template,
+    );
 
     return new NextResponse(pdf as unknown as BodyInit, {
       status: 200,
