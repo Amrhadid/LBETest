@@ -46,6 +46,9 @@ function pickAudioMime(): string {
  * face check. All best-effort — a denied permission or failed upload is logged
  * to the console and skipped, never blocking the exam.
  *
+ * The webcam + mic come from a SHARED camera stream acquired once earlier (the
+ * ID step), so the candidate is only prompted for camera/mic a single time.
+ * `start(cameraStream)` reuses that stream and requests ONLY screen share.
  * getDisplayMedia (screen) MUST be called from a user gesture, so `start()` is
  * wired to a "Begin monitored exam" button, not an effect.
  */
@@ -146,8 +149,13 @@ export function useAttemptCapture({
     [attemptId],
   );
 
-  /** Request permissions + begin capture. Returns true if anything started. */
-  const start = React.useCallback(async (): Promise<boolean> => {
+  /**
+   * Begin capture using an already-granted shared camera+mic stream, and
+   * request screen share (its own gesture-bound prompt). Returns true if any
+   * recorder started.
+   */
+  const start = React.useCallback(
+    async (cameraStream: MediaStream | null): Promise<boolean> => {
     if (!enabled || mgr.current) return false;
     const m: Manager = {
       streams: [],
@@ -157,15 +165,13 @@ export function useAttemptCapture({
       stopped: false,
     };
 
-    // Webcam + mic in one prompt, then split into video-only / audio-only.
-    try {
-      const av = await navigator.mediaDevices.getUserMedia({
-        video: { width: 640, height: 480, frameRate: 10 },
-        audio: true,
-      });
-      m.streams.push(av);
-      const vTrack = av.getVideoTracks()[0];
-      const aTrack = av.getAudioTracks()[0];
+    // Webcam + mic come from the SHARED stream (no new prompt). Split its tracks
+    // into video-only / audio-only recorders.
+    if (cameraStream) {
+      // Own the shared stream so stop() tears it down when the exam finishes.
+      m.streams.push(cameraStream);
+      const vTrack = cameraStream.getVideoTracks()[0];
+      const aTrack = cameraStream.getAudioTracks()[0];
       if (vTrack) {
         startKind(m, "webcam", new MediaStream([vTrack]), {
           mimeType: pickVideoMime(),
@@ -187,8 +193,6 @@ export function useAttemptCapture({
           audioBitsPerSecond: AUDIO_BPS,
         });
       }
-    } catch {
-      /* camera/mic denied — continue; the missing streams are visible to admin */
     }
 
     // Screen capture (separate user-facing prompt).
@@ -208,7 +212,9 @@ export function useAttemptCapture({
 
     mgr.current = m;
     return m.recorders.length > 0;
-  }, [enabled, startKind, sampleFrame]);
+  },
+  [enabled, startKind, sampleFrame],
+  );
 
   return { start, stop };
 }

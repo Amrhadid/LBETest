@@ -21,11 +21,14 @@ export function RoomScanGate({
   userId,
   attemptId,
   onDone,
+  ensureCamera,
 }: {
   supabase: SupabaseClient;
   userId: string;
   attemptId: string;
   onDone: () => void;
+  /** Return the shared camera+mic stream (already granted at the ID step). */
+  ensureCamera: () => Promise<MediaStream | null>;
 }) {
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
   const streamRef = React.useRef<MediaStream | null>(null);
@@ -35,30 +38,30 @@ export function RoomScanGate({
   const [countdown, setCountdown] = React.useState(SCAN_SECONDS);
   const [errMsg, setErrMsg] = React.useState<string>("");
 
-  const stopStream = React.useCallback(() => {
-    streamRef.current?.getTracks().forEach((t) => t.stop());
+  // Detach the preview only; the shared stream is owned by the runner and reused
+  // by the continuous recording — never stop it here.
+  const detachPreview = React.useCallback(() => {
+    if (videoRef.current) videoRef.current.srcObject = null;
     streamRef.current = null;
   }, []);
 
-  React.useEffect(() => () => stopStream(), [stopStream]);
+  React.useEffect(() => () => detachPreview(), [detachPreview]);
 
   const enableCamera = React.useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: false,
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play().catch(() => {});
-      }
-      setPhase("ready");
-    } catch {
+    const stream = await ensureCamera();
+    if (!stream) {
       setErrMsg("We couldn't access your camera.");
       setPhase("error");
+      return;
     }
-  }, []);
+    streamRef.current = stream;
+    if (videoRef.current) {
+      const v = stream.getVideoTracks()[0];
+      videoRef.current.srcObject = v ? new MediaStream([v]) : stream;
+      await videoRef.current.play().catch(() => {});
+    }
+    setPhase("ready");
+  }, [ensureCamera]);
 
   const record = React.useCallback(async () => {
     const stream = streamRef.current;
@@ -66,11 +69,14 @@ export function RoomScanGate({
     setPhase("recording");
     setCountdown(SCAN_SECONDS);
 
+    // Record the video track only (no audio in the room-scan clip).
+    const vTrack = stream.getVideoTracks()[0];
+    const recStream = vTrack ? new MediaStream([vTrack]) : stream;
     const chunks: BlobPart[] = [];
     const mime = MediaRecorder.isTypeSupported("video/webm")
       ? "video/webm"
       : "";
-    const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+    const rec = new MediaRecorder(recStream, mime ? { mimeType: mime } : undefined);
     rec.ondataavailable = (e) => {
       if (e.data.size > 0) chunks.push(e.data);
     };
@@ -89,7 +95,7 @@ export function RoomScanGate({
     rec.stop();
 
     const blob = await done;
-    stopStream();
+    detachPreview();
     setPhase("uploading");
     try {
       const path = await uploadRoomScan({ supabase, blob, userId, attemptId });
@@ -98,14 +104,14 @@ export function RoomScanGate({
       // Upload failed — let them proceed rather than trap them out of the exam.
     }
     onDone();
-  }, [supabase, userId, attemptId, onDone, stopStream]);
+  }, [supabase, userId, attemptId, onDone, detachPreview]);
 
   const skip = React.useCallback(() => {
-    stopStream();
+    detachPreview();
     // Record the skip so the attempt shows the scan was declined, then proceed.
     void saveRoomScan(attemptId, `${userId}/${attemptId}/room-scan-skipped`);
     onDone();
-  }, [stopStream, attemptId, userId, onDone]);
+  }, [detachPreview, attemptId, userId, onDone]);
 
   return (
     <div className="mx-auto max-w-lg py-16 text-center">

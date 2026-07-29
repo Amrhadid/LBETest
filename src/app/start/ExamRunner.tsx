@@ -15,7 +15,7 @@ import { SubmittedScreen } from "@/components/exam/SubmittedScreen";
 import { RoomScanGate } from "@/components/exam/RoomScanGate";
 import { IdVerificationGate } from "@/components/exam/IdVerificationGate";
 import { useAttemptCapture } from "@/lib/exam/useAttemptCapture";
-import { ShieldCheck, Loader2 } from "lucide-react";
+import { ShieldCheck, Loader2, MonitorSmartphone } from "lucide-react";
 import { saveResponse, logEvent, submitAttempt, scoreSection, beginSection, recordAttemptMeta } from "@/app/start/actions";
 
 export type RunnerSection = { level: LbeLevel; items: ExamItem[] };
@@ -95,6 +95,60 @@ export function ExamRunner({
     attemptId,
     enabled: !isPreview,
   });
+
+  // Shared camera+mic stream: acquired ONCE (ID step) and reused by the room
+  // scan and continuous recording, so the candidate grants camera/mic once.
+  const cameraRef = React.useRef<MediaStream | null>(null);
+  const ensureCamera = React.useCallback(async (): Promise<MediaStream | null> => {
+    if (cameraRef.current) return cameraRef.current;
+    const constraints = { width: 640, height: 480, frameRate: 10 };
+    try {
+      cameraRef.current = await navigator.mediaDevices.getUserMedia({
+        video: constraints,
+        audio: true,
+      });
+    } catch {
+      // Mic may be unavailable/denied — fall back to camera-only so the ID
+      // selfie (a hard block) can still be captured. Missing mic is flagged.
+      try {
+        cameraRef.current = await navigator.mediaDevices.getUserMedia({
+          video: constraints,
+        });
+      } catch {
+        cameraRef.current = null;
+      }
+    }
+    return cameraRef.current;
+  }, []);
+  // Stop the shared camera when the runner unmounts (belt-and-suspenders; the
+  // capture hook also stops it at submit).
+  React.useEffect(
+    () => () => cameraRef.current?.getTracks().forEach((t) => t.stop()),
+    [],
+  );
+
+  // Desktop/laptop requirement: screen recording (getDisplayMedia) is
+  // unsupported on iOS Safari and unreliable on mobile browsers, so a mobile
+  // candidate would get silently weaker proctoring. Block before the exam.
+  const [deviceOk, setDeviceOk] = React.useState<boolean | null>(null);
+  React.useEffect(() => {
+    if (isPreview) {
+      setDeviceOk(true);
+      return;
+    }
+    const noScreenShare =
+      typeof navigator === "undefined" ||
+      typeof navigator.mediaDevices?.getDisplayMedia !== "function";
+    const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
+    const mobileUa =
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua);
+    // Coarse pointer + touch is a strong secondary mobile/tablet signal.
+    const coarseTouch =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(pointer: coarse)").matches === true &&
+      "ontouchstart" in window;
+    setDeviceOk(!(noScreenShare || mobileUa || coarseTouch));
+  }, [isPreview]);
 
   const section = sections[sectionIndex];
   const isLastSection = sectionIndex === sections.length - 1;
@@ -286,6 +340,35 @@ export function ExamRunner({
     );
   }
 
+  // Desktop/laptop requirement (real attempts, before the exam begins).
+  if (!isPreview && !captureStarted) {
+    if (deviceOk === null) {
+      return (
+        <div className="flex min-h-dvh items-center justify-center bg-background">
+          <Loader2 className="size-6 animate-spin text-gold" />
+        </div>
+      );
+    }
+    if (!deviceOk) {
+      return (
+        <div className="min-h-dvh bg-background">
+          <div className="container mx-auto max-w-lg px-4 py-20 text-center">
+            <MonitorSmartphone className="mx-auto size-10 text-gold" />
+            <h1 className="font-serif-display mt-4 text-3xl text-charcoal">
+              Please use a desktop or laptop
+            </h1>
+            <p className="mt-3 text-sm text-muted-foreground">
+              This exam is monitored and requires screen recording, which mobile
+              browsers don&rsquo;t support. Open this page on a desktop or laptop
+              computer with a webcam to take the exam. Your progress is saved —
+              nothing is lost.
+            </p>
+          </div>
+        </div>
+      );
+    }
+  }
+
   // Pre-exam gate sequence (real attempts only): ID → room scan → start
   // monitored recording, each before section 1.
   if (!idDone) {
@@ -297,6 +380,7 @@ export function ExamRunner({
             userId={userId}
             attemptId={attemptId}
             onDone={() => setIdDone(true)}
+            ensureCamera={ensureCamera}
           />
         </div>
       </div>
@@ -312,6 +396,7 @@ export function ExamRunner({
             userId={userId}
             attemptId={attemptId}
             onDone={() => setScanDone(true)}
+            ensureCamera={ensureCamera}
           />
         </div>
       </div>
@@ -341,7 +426,10 @@ export function ExamRunner({
             disabled={startingCapture}
             onClick={async () => {
               setStartingCapture(true);
-              await capture.start();
+              // Reuse the shared camera+mic stream (already granted at the ID
+              // step); this only adds the screen-share prompt.
+              const cam = await ensureCamera();
+              await capture.start(cam);
               setStartingCapture(false);
               setCaptureStarted(true);
             }}

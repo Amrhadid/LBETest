@@ -19,11 +19,14 @@ export function IdVerificationGate({
   userId,
   attemptId,
   onDone,
+  ensureCamera,
 }: {
   supabase: SupabaseClient;
   userId: string;
   attemptId: string;
   onDone: () => void;
+  /** Acquire (once) or return the shared camera+mic stream. */
+  ensureCamera: () => Promise<MediaStream | null>;
 }) {
   const [idFile, setIdFile] = React.useState<File | null>(null);
   const [idPreview, setIdPreview] = React.useState<string>("");
@@ -34,14 +37,14 @@ export function IdVerificationGate({
   const [err, setErr] = React.useState("");
 
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
-  const streamRef = React.useRef<MediaStream | null>(null);
 
-  const stopCam = React.useCallback(() => {
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-    streamRef.current = null;
+  // Detach the preview when leaving; NEVER stop the shared stream here — it is
+  // reused by the room scan and the continuous recording.
+  const detachPreview = React.useCallback(() => {
+    if (videoRef.current) videoRef.current.srcObject = null;
     setCamOn(false);
   }, []);
-  React.useEffect(() => () => stopCam(), [stopCam]);
+  React.useEffect(() => () => detachPreview(), [detachPreview]);
 
   const onId = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0] ?? null;
@@ -50,16 +53,17 @@ export function IdVerificationGate({
   };
 
   const enableCam = async () => {
-    try {
-      const s = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-      streamRef.current = s;
-      setCamOn(true);
-      if (videoRef.current) {
-        videoRef.current.srcObject = s;
-        await videoRef.current.play().catch(() => {});
-      }
-    } catch {
+    const s = await ensureCamera();
+    if (!s) {
       setErr("We couldn't access your camera for the selfie.");
+      return;
+    }
+    setCamOn(true);
+    if (videoRef.current) {
+      // Show only the video track in the preview.
+      const v = s.getVideoTracks()[0];
+      videoRef.current.srcObject = v ? new MediaStream([v]) : s;
+      await videoRef.current.play().catch(() => {});
     }
   };
 
@@ -75,7 +79,7 @@ export function IdVerificationGate({
         if (b) {
           setSelfie(b);
           setSelfiePreview(URL.createObjectURL(b));
-          stopCam();
+          detachPreview();
         }
       },
       "image/jpeg",
