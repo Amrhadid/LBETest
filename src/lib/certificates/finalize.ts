@@ -35,7 +35,7 @@ import {
 } from "@/lib/certificates/integrity";
 
 export const CERTIFICATES_BUCKET = "certificates";
-const CERT_VALIDITY_YEARS = 2;
+const CERT_VALIDITY_YEARS = 1;
 
 export interface FinalizeResult {
   finalized: boolean;
@@ -129,6 +129,18 @@ export async function finalizeAttempt(
   const level = certifiedLevel(tallies);
   const score = totalCorrect(tallies);
   const totalItems = tallies.reduce((s, t) => s + t.total, 0);
+  const scoreOutOf100 = totalItems > 0 ? Math.round((score / totalItems) * 100) : 0;
+
+  // Percentile is based on completed, non-preview attempts for this exam.
+  // Ties share a rank: the percentage is the cohort strictly below this score.
+  const [{ count: cohortSize }, { count: lowerScores }] = await Promise.all([
+    svc.from("attempts").select("id", { count: "exact", head: true })
+      .eq("exam_id", attempt.exam_id).eq("status", "scored").eq("is_preview", false),
+    svc.from("attempts").select("id", { count: "exact", head: true })
+      .eq("exam_id", attempt.exam_id).eq("status", "scored").eq("is_preview", false)
+      .lt("final_score", score),
+  ]);
+  const percentileRank = Math.round(((lowerScores ?? 0) / Math.max(cohortSize ?? 1, 1)) * 100);
 
   // Authoritative result on the attempt (the internal result record).
   await svc
@@ -199,6 +211,7 @@ export async function finalizeAttempt(
         user_id: attempt.user_id,
         lbe_level: level,
         score,
+        percentile_rank: percentileRank,
         issued_at: issuedAt.toISOString(),
         expires_at: expiresAt.toISOString(),
         status: "valid",
@@ -239,10 +252,11 @@ export async function finalizeAttempt(
       candidateName: profile?.full_name ?? "Candidate",
       level,
       levelName: levelName(level),
-      score,
-      totalItems,
+      score: scoreOutOf100,
+      percentileRank,
       certCode,
       issuedAt,
+      expiresAt,
       verifyUrl: verifyUrlFor(certCode),
     });
 
