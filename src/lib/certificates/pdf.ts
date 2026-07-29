@@ -57,7 +57,22 @@ function seal(page: PDFPage, x: number, y: number, radius: number, bold: PDFFont
   centeredAt(page, bold, "OFFICIAL", x, y + 9, 6.5, INK);
   centeredAt(page, bold, "LBE TEST", x, y, 6.5, INK);
   centeredAt(page, bold, "CERTIFICATE", x, y - 9, 6.2, INK);
-  centeredAt(page, reg, "★", x, y + 19, 8, GOLD);
+  // Small 5-point star, drawn (pdf-lib StandardFonts can't encode "★").
+  drawStar(page, x, y + 21, 5, GOLD);
+}
+
+/** Draw a filled 5-point star centred at (cx, cy), y-up like the page. */
+function drawStar(page: PDFPage, cx: number, cy: number, outer: number, color = GOLD) {
+  const inner = outer * 0.45;
+  let d = "";
+  for (let i = 0; i < 10; i++) {
+    const r = i % 2 === 0 ? outer : inner;
+    const a = (Math.PI / 2) + (i * Math.PI) / 5; // start at top, step 36°
+    const px = cx + r * Math.cos(a);
+    const py = cy + r * Math.sin(a);
+    d += `${i === 0 ? "M" : "L"} ${px.toFixed(2)} ${py.toFixed(2)} `;
+  }
+  page.drawSvgPath(d + "Z", { color });
 }
 
 function centeredAt(page: PDFPage, font: PDFFont, text: string, x: number, y: number, size: number, color = INK) {
@@ -96,7 +111,7 @@ export async function generateCertificatePdf(input: CertificatePdfInput): Promis
   page.drawText("TEST", { x: 329, y: 774, size: 13, font: bold, color: rgb(1,1,1) });
   centered(page, bold, "BUSINESS ENGLISH TEST", 744, 9, TEAL);
   centered(page, display, "C E R T I F I C A T E", 676, 37, INK);
-  centered(page, bold, "◆   O F   A C H I E V E M E N T   ◆", 642, 12, INK);
+  centered(page, bold, "•   O F   A C H I E V E M E N T   •", 642, 12, INK);
 
   // Restrained dotted world-map watermark.
   const map = [[115,548,70,22],[176,568,55,25],[235,535,38,16],[307,552,42,19],[358,567,35,17],[414,542,68,25],[466,575,42,18],[169,509,40,17],[358,510,45,16],[443,493,35,20]];
