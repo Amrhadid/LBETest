@@ -3,11 +3,12 @@ import { ArrowRight, Check } from "lucide-react";
 
 import { Certificate } from "@/components/home/Certificate";
 import { RegistrationCard } from "@/components/home/RegistrationCard";
+import type { PublicSupabaseConfig } from "@/lib/supabase/client";
 
 const trustFacts = ["Online test", "Results in 48 hours", "Verifiable certificate"];
 const infoBand = ["4 skills assessed", "Workplace language", "Unique certificate ID"];
 
-export function Hero() {
+export function Hero({ config }: { config?: PublicSupabaseConfig }) {
   return (
     <section className="relative overflow-hidden border-b border-gold/25">
       {/* Soft security-pattern wash behind the hero */}
@@ -57,7 +58,7 @@ export function Hero() {
 
           {/* B — registration card */}
           <div className="animate-fade-up [animation-delay:80ms] lg:[grid-area:form] lg:self-start">
-            <RegistrationCard />
+            <RegistrationCard config={config} />
           </div>
 
           {/* C — certificate visual */}

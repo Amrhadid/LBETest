@@ -36,6 +36,12 @@ export interface Database {
           candidate_code: string | null;
           certificate_photo_path: string | null;
           certificate_photo_status: string | null;
+          date_of_birth: string | null;
+          current_job: string | null;
+          target_job: string | null;
+          visit_purpose: string | null;
+          country_of_origin: string | null;
+          onboarded_at: string | null;
           created_at: string;
         };
         Insert: {
@@ -46,6 +52,12 @@ export interface Database {
           candidate_code?: string | null;
           certificate_photo_path?: string | null;
           certificate_photo_status?: string | null;
+          date_of_birth?: string | null;
+          current_job?: string | null;
+          target_job?: string | null;
+          visit_purpose?: string | null;
+          country_of_origin?: string | null;
+          onboarded_at?: string | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;
@@ -462,6 +474,17 @@ export interface Database {
       };
       submit_attempt: {
         Args: { p_attempt_id: string };
+        Returns: undefined;
+      };
+      save_onboarding: {
+        Args: {
+          p_full_name: string;
+          p_date_of_birth: string;
+          p_current_job: string | null;
+          p_target_job: string | null;
+          p_visit_purpose: string;
+          p_country_of_origin: string;
+        };
         Returns: undefined;
       };
     };

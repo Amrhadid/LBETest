@@ -6,6 +6,7 @@ import { Section } from "@/components/Section";
 import { SubmittedScreen } from "@/components/exam/SubmittedScreen";
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server";
 import { getServerSupabaseEnv } from "@/lib/supabase/env";
+import { profileNeedsOnboarding } from "@/lib/auth/onboarding";
 import { ACTIVE_EXAM_ID, parseExamConfig } from "@/lib/exam/config";
 import { getSectionAnchors } from "@/lib/exam/timing.server";
 import { remainingSeconds, attemptExpired } from "@/lib/exam/timing";
@@ -110,6 +111,16 @@ export default async function StartPage() {
     user = null;
   }
   if (!user) redirect("/login?redirectedFrom=/start");
+
+  // First-time candidates must complete onboarding before taking the exam.
+  const { data: gateProfile } = await supabase
+    .from("profiles")
+    .select("role, onboarded_at")
+    .eq("id", user.id)
+    .maybeSingle();
+  if (profileNeedsOnboarding(gateProfile)) {
+    redirect("/onboarding?next=/start");
+  }
 
   // Latest attempts for this user + exam (RLS: own rows only).
   const { data: attempts } = await supabase

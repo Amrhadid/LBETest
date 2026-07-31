@@ -1,11 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { createClient } from "@/lib/supabase/server";
+import { profileNeedsOnboarding } from "@/lib/auth/onboarding";
 
 /**
- * Auth callback for magic-link and email-confirmation flows. Supabase redirects
- * here with a `code` that we exchange for a session (PKCE). On success we send
- * the user on to `next` (defaults to /dashboard).
+ * Auth callback for Google OAuth / magic-link flows. Supabase redirects here
+ * with a `code` that we exchange for a session (PKCE). On success we send the
+ * user on to `next` (defaults to /dashboard) — but a first-time candidate who
+ * hasn't onboarded is routed through /onboarding first (carrying `next`).
  */
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
@@ -16,6 +18,21 @@ export async function GET(request: NextRequest) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role, onboarded_at")
+          .eq("id", user.id)
+          .maybeSingle();
+        if (profileNeedsOnboarding(profile)) {
+          return NextResponse.redirect(
+            `${origin}/onboarding?next=${encodeURIComponent(next)}`,
+          );
+        }
+      }
       return NextResponse.redirect(`${origin}${next}`);
     }
   }

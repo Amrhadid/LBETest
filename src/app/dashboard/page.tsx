@@ -8,6 +8,7 @@ import { Section } from "@/components/Section";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server";
+import { profileNeedsOnboarding } from "@/lib/auth/onboarding";
 import { signOut } from "@/app/login/actions";
 import { levelName } from "@/lib/certificates/eligibility";
 import { CERTIFICATES_BUCKET } from "@/lib/certificates/finalize";
@@ -36,7 +37,11 @@ function attemptResult(a: { status: string; lbe_level: number | null }): {
 
 export default async function DashboardPage() {
   let user: { id: string; email?: string } | null = null;
-  let profile: { full_name: string | null; role: string | null } | null = null;
+  let profile: {
+    full_name: string | null;
+    role: string | null;
+    onboarded_at: string | null;
+  } | null = null;
   const supabase = await createClient();
   try {
     const { data: { user: u } } = await supabase.auth.getUser();
@@ -44,7 +49,7 @@ export default async function DashboardPage() {
     if (user) {
       const { data } = await supabase
         .from("profiles")
-        .select("full_name, role")
+        .select("full_name, role, onboarded_at")
         .eq("id", user.id)
         .maybeSingle();
       profile = data;
@@ -53,6 +58,8 @@ export default async function DashboardPage() {
     user = null;
   }
   if (!user) redirect("/login");
+  // First-time candidates must complete onboarding before the dashboard.
+  if (profileNeedsOnboarding(profile)) redirect("/onboarding?next=/dashboard");
 
   const displayName = profile?.full_name ?? user.email ?? "there";
 
