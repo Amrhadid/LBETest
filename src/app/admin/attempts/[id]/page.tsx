@@ -6,12 +6,16 @@ import {
 } from "lucide-react";
 
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { requireAdmin } from "@/lib/admin/guard";
+import { requireStaff } from "@/lib/admin/guard";
 import { emailMap } from "@/lib/admin/users";
 import { levelName } from "@/lib/certificates/eligibility";
 import { AdminHeader, StatCard, TableWrap } from "@/app/admin/ui";
 import { TrustBadge } from "@/app/admin/attempts/TrustBadge";
+import { GradingBadge } from "@/app/admin/attempts/GradingBadge";
+import { attemptGradingStatus } from "@/lib/exam/grading-status";
 import { RecomputeTrustButton } from "@/app/admin/attempts/[id]/RecomputeTrustButton";
+import { GradingReview } from "@/app/admin/attempts/[id]/GradingReview";
+import { loadAttemptGrades } from "@/app/admin/attempts/[id]/grading-data";
 import { findDuplicateAnswers } from "@/lib/exam/trust.server";
 import {
   ROOM_SCAN_BUCKET,
@@ -54,7 +58,7 @@ export default async function AttemptDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireAdmin();
+  await requireStaff();
   const { id } = await params;
   const svc = createServiceRoleClient();
 
@@ -65,6 +69,9 @@ export default async function AttemptDetailPage({
     .maybeSingle();
 
   if (!attempt) notFound();
+
+  // In-context AI-grading cards (proposals + failures) for this attempt.
+  const grades = await loadAttemptGrades(svc, id);
 
   const [{ data: events }, { data: responses }, emails, { data: exam }, dups] =
     await Promise.all([
@@ -146,6 +153,9 @@ export default async function AttemptDetailPage({
       : `${maxGapMin}m`;
   const pending = (responses ?? []).filter((r) => r.grade_status === "pending_approval").length;
   const failed = (responses ?? []).filter((r) => r.grade_status === "failed").length;
+  const gradingStatus = attemptGradingStatus(
+    (responses ?? []).map((r) => r.grade_status),
+  );
 
   return (
     <div>
@@ -158,11 +168,14 @@ export default async function AttemptDetailPage({
         title={emails.get(attempt.user_id) ?? attempt.user_id.slice(0, 8)}
         description={`${exam?.title ?? "LBE exam"} · attempt ${attempt.id.slice(0, 8)}`}
         actions={
-          attempt.is_preview ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-gold/15 px-3 py-1 text-xs font-semibold text-charcoal">
-              <Eye className="size-3.5" /> Preview
-            </span>
-          ) : undefined
+          <div className="flex items-center gap-2">
+            {gradingStatus && <GradingBadge status={gradingStatus} />}
+            {attempt.is_preview && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-gold/15 px-3 py-1 text-xs font-semibold text-charcoal">
+                <Eye className="size-3.5" /> Preview
+              </span>
+            )}
+          </div>
         }
       />
 
@@ -354,9 +367,26 @@ export default async function AttemptDetailPage({
         </section>
       )}
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-4">
-        <StatCard label="Grades pending / failed" value={`${pending} / ${failed}`} />
-      </div>
+      {/* ---- AI grading, in context with the rest of the attempt --------- */}
+      {(gradingStatus !== null || grades.length > 0) && (
+        <section className="mt-8 rounded-xl border border-gold/20 bg-white/50 p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="font-serif-display text-2xl text-charcoal">
+              AI grading
+            </h2>
+            {gradingStatus && <GradingBadge status={gradingStatus} />}
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Open-ended items (types 3–6) graded by AI. Proposals don&apos;t count
+            toward the score or certificate until you approve — {pending} pending
+            {" · "}
+            {failed} failed.
+          </p>
+          <div className="mt-4">
+            <GradingReview grades={grades} />
+          </div>
+        </section>
+      )}
 
       <div className="mt-6 grid gap-2 text-sm text-muted-foreground sm:grid-cols-3">
         <p><span className="font-medium text-charcoal">Started:</span> {fmt(attempt.started_at)}</p>

@@ -1,9 +1,11 @@
 /**
  * Server-side access guards for the /admin section. SERVER ONLY.
  *
- * Role boundaries (step 14): a `teacher` may only reach Grading (/admin/review);
- * an `admin` reaches everything. These helpers resolve the caller's role and
- * redirect when they lack access, so every admin page/action can gate in one line.
+ * Role boundaries (step 14): a `teacher` may only reach Attempts / Results
+ * (/admin/attempts) — where grading now happens in context — with the "needs
+ * grading" view as their home; an `admin` reaches everything. These helpers
+ * resolve the caller's role and redirect when they lack access, so every admin
+ * page/action can gate in one line.
  */
 
 import { redirect } from "next/navigation";
@@ -49,13 +51,15 @@ export async function requireStaff(
   return u;
 }
 
-/** Require admin. Teachers are sent to the one area they can use (Grading). */
+/** Require admin. Teachers are sent to the one area they can use (grading). */
 export async function requireAdmin(
   redirectTo = "/admin",
 ): Promise<AdminUser> {
   const u = await resolveRole(redirectTo);
   if (u.role !== "admin") {
-    redirect(u.role === "teacher" ? "/admin/review" : "/dashboard");
+    redirect(
+      u.role === "teacher" ? "/admin/attempts?view=needs_grading" : "/dashboard",
+    );
   }
   return u;
 }

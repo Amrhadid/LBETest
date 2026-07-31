@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard, FileText, ListChecks, Library, ClipboardCheck,
+  LayoutDashboard, FileText, ListChecks, Library,
   GraduationCap, Users, ScrollText, Award, KeyRound, History,
 } from "lucide-react";
 
@@ -16,10 +16,11 @@ const ITEMS: Item[] = [
   { label: "Exams", href: "/admin/exams", icon: FileText, adminOnly: true },
   { label: "Sections", href: "/admin/sections", icon: ListChecks, adminOnly: true },
   { label: "Exam Library", href: "/admin/library", icon: Library, adminOnly: true },
-  { label: "Grading", href: "/admin/review", icon: ClipboardCheck, adminOnly: false },
   { label: "Students", href: "/admin/students", icon: GraduationCap, adminOnly: true },
   { label: "Users", href: "/admin/users", icon: Users, adminOnly: true },
-  { label: "Attempts / Results", href: "/admin/attempts", icon: ScrollText, adminOnly: true },
+  // Grading now happens in context on each attempt's detail page; teachers get
+  // the Attempts list (with the "needs grading" view) as their home.
+  { label: "Attempts / Results", href: "/admin/attempts", icon: ScrollText, adminOnly: false },
   { label: "Certificates", href: "/admin/certificates", icon: Award, adminOnly: true },
   { label: "Access Codes", href: "/admin/access-codes", icon: KeyRound, adminOnly: true },
   { label: "Audit Log", href: "/admin/audit-log", icon: History, adminOnly: true },

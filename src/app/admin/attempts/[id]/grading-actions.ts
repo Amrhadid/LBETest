@@ -13,6 +13,15 @@ import {
 export type ReviewActionState = { error?: string; message?: string };
 
 /**
+ * Revalidate the surfaces that show grading state: the attempt's own detail
+ * page (where the cards now live) and the Attempts list (grading badges).
+ */
+function revalidateGrading(attemptId: string | undefined) {
+  if (attemptId) revalidatePath(`/admin/attempts/${attemptId}`);
+  revalidatePath("/admin/attempts");
+}
+
+/**
  * After a grading decision, try to finalize the attempt. No-ops unless the
  * attempt is fully resolved (no pending/failed grades). Best-effort — a
  * certificate hiccup must never surface as a grading error.
@@ -74,7 +83,7 @@ export async function decideGrade(
     },
   );
   await tryFinalize(attemptId);
-  revalidatePath("/admin/review");
+  revalidateGrading(attemptId);
   return {
     message: decision === "approve" ? "Approved." : "Rejected.",
   };
@@ -125,7 +134,7 @@ export async function gradeManually(
     },
   );
   await tryFinalize(attemptId);
-  revalidatePath("/admin/review");
+  revalidateGrading(attemptId);
   return { message: "Graded." };
 }
 
@@ -175,7 +184,7 @@ export async function regrade(
       detail: { status: outcome.status, attemptId },
     },
   );
-  revalidatePath("/admin/review");
+  revalidateGrading(attemptId);
   return {
     message:
       outcome.status === "failed"

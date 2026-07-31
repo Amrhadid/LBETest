@@ -462,7 +462,7 @@ export async function submitAttempt(attemptId: string): Promise<ActionState> {
 
   // Grade the AI-gradable open-ended items (text 4/5, voice 3/6) into
   // pending-approval proposals. Best-effort: never fails the submission. The
-  // proposals surface in /admin/review for a teacher/admin to approve before
+  // proposals surface on the attempt detail page (/admin/attempts/[id]) for a teacher/admin to approve before
   // they count. Runs with the service role inside the grader.
   try {
     const { gradeAttemptTextResponses } = await import(

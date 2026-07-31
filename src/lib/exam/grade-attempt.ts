@@ -141,7 +141,7 @@ export async function gradeAttemptTextResponses(
   };
 
   // Record an AI-grading failure so it's VISIBLE to staff: mark the response
-  // grade_status='failed' (surfaces on /admin/review) and keep the error on
+  // grade_status='failed' (surfaces on the attempt detail page) and keep the error on
   // ai_feedback. The student's answer + audio are untouched, so a teacher can
   // grade it by hand. Also drop a grading_error flag into the review queue.
   const markFailed = async (
@@ -290,7 +290,7 @@ export interface RegradeOutcome {
 /**
  * Re-run the AI grading pipeline for ONE response and re-stage it for approval.
  *
- * Used from /admin/review to retry a response whose AI grade failed (e.g. the
+ * Used from the attempt detail page to retry a response whose AI grade failed (e.g. the
  * transcription bug) or to refresh a still-pending proposal — without a full
  * re-grade of the attempt or a manual SQL edit. Honours the approval gate: an
  * already-approved response is never silently changed (that goes through the

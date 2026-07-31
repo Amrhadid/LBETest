@@ -14,27 +14,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { decideGrade, gradeManually, regrade } from "@/app/admin/review/actions";
+import {
+  decideGrade,
+  gradeManually,
+  regrade,
+} from "@/app/admin/attempts/[id]/grading-actions";
+import type { PendingGrade } from "@/app/admin/attempts/[id]/grading-types";
 
-export interface PendingGrade {
-  responseId: string;
-  attemptId: string;
-  questionType: number;
-  questionTypeLabel: string;
-  lbeLevel: number | null;
-  prompt: string | null;
-  isVoice: boolean;
-  candidateText: string; // typed answer OR speech transcript
-  audioUrl: string | null;
-  aiScore: number | null;
-  maxScore: number;
-  aiIsCorrect: boolean | null;
-  aiConfidence: number | null;
-  feedback: string;
-  criteria: { id: string; met: boolean; note?: string }[];
-  failed: boolean;
-  errorMessage: string | null;
-}
+export type { PendingGrade };
 
 /** Manual scoring form shown when AI grading failed (or for an override). */
 function ManualGradeForm({
@@ -371,12 +358,12 @@ function ProposalRow({ grade: initialGrade }: { grade: PendingGrade }) {
   );
 }
 
-export function ReviewList({ grades }: { grades: PendingGrade[] }) {
+/** In-context AI-grading review cards for one attempt's open-ended responses. */
+export function GradingReview({ grades }: { grades: PendingGrade[] }) {
   if (grades.length === 0) {
     return (
       <p className="text-charcoal/60">
-        Nothing awaiting approval. AI-graded responses will appear here as
-        candidates submit.
+        No AI-graded responses need attention on this attempt.
       </p>
     );
   }
