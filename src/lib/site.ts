@@ -16,6 +16,10 @@ export const siteConfig = {
 export const routes = {
   book: "/start", // existing booking / take-the-test flow
   signIn: "/login", // existing login flow
+  // "My Profile": the account area. Logged-out users hitting /dashboard are sent
+  // to /login (Google sign-in/sign-up) and, for first-time sign-ups, through
+  // /onboarding before landing back on their profile.
+  myProfile: "/dashboard",
   goToMyTest: "/login", // "already booked" -> sign in to resume
   verify: "/verify", // existing certificate-verification route
   individuals: "/start", // individuals -> booking flow
