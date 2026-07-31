@@ -22,7 +22,7 @@ const charcoal = "#1D1D1F";
 
 const levels = [
   ["LBE 1", "Foundation"], ["LBE 2", "Operational"],
-  ["LBE 3", "Professional"], ["LBE 4", "Advanced Professional"],
+  ["LBE 3", "Professional"], ["LBE 4", "Advanced"],
   ["LBE 5", "Executive"],
 ];
 const topics = ["Sales", "Marketing", "HR", "Meetings", "Emails", "Customer Service", "Finance", "Management", "Presentations"];

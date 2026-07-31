@@ -19,7 +19,7 @@ export const LEVEL_NAMES: Record<number, string> = {
   1: "Foundation",
   2: "Operational",
   3: "Professional",
-  4: "Advanced Professional",
+  4: "Advanced",
   5: "Executive",
 };
 

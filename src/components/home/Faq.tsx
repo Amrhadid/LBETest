@@ -47,8 +47,8 @@ const LBE_LEVELS: LbeLevelDef[] = [
   },
   {
     level: "LBE 4",
-    nameEn: "Advanced Professional",
-    nameAr: "Advanced Professional (المهني المتقدم)",
+    nameEn: "Advanced",
+    nameAr: "Advanced (المتقدم)",
     canEn: "Can communicate fluently and confidently in complex business situations.",
     canAr: "يمكنه التواصل بطلاقة وثقة في مواقف العمل المعقدة.",
   },
