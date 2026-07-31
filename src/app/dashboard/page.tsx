@@ -8,7 +8,7 @@ import { Section } from "@/components/Section";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server";
-import { profileNeedsOnboarding } from "@/lib/auth/onboarding";
+import { profileNeedsOnboarding, VISIT_PURPOSE_LABELS } from "@/lib/auth/onboarding";
 import { signOut } from "@/app/login/actions";
 import { levelName } from "@/lib/certificates/eligibility";
 import { CERTIFICATES_BUCKET } from "@/lib/certificates/finalize";
@@ -41,6 +41,11 @@ export default async function DashboardPage() {
     full_name: string | null;
     role: string | null;
     onboarded_at: string | null;
+    date_of_birth: string | null;
+    current_job: string | null;
+    target_job: string | null;
+    visit_purpose: string | null;
+    country_of_origin: string | null;
   } | null = null;
   const supabase = await createClient();
   try {
@@ -49,7 +54,9 @@ export default async function DashboardPage() {
     if (user) {
       const { data } = await supabase
         .from("profiles")
-        .select("full_name, role, onboarded_at")
+        .select(
+          "full_name, role, onboarded_at, date_of_birth, current_job, target_job, visit_purpose, country_of_origin",
+        )
         .eq("id", user.id)
         .maybeSingle();
       profile = data;
@@ -136,6 +143,36 @@ export default async function DashboardPage() {
               </Link>
             </div>
           )}
+
+          {/* Your profile (onboarding details) */}
+          <div className="mt-10">
+            <h2 className="font-serif-display text-2xl text-charcoal">Your profile</h2>
+            <div className="mt-4 grid gap-3 rounded-2xl border border-gold/20 bg-card p-6 shadow-card sm:grid-cols-2">
+              {[
+                { label: "Name", value: profile?.full_name ?? "—" },
+                { label: "Email", value: user.email ?? "—" },
+                { label: "Date of birth", value: profile?.date_of_birth ?? "—" },
+                { label: "Country of origin", value: profile?.country_of_origin ?? "—" },
+                {
+                  label: profile?.current_job ? "Current job" : "Target job",
+                  value: profile?.current_job ?? profile?.target_job ?? "—",
+                },
+                {
+                  label: "Purpose",
+                  value: profile?.visit_purpose
+                    ? (VISIT_PURPOSE_LABELS[profile.visit_purpose] ?? profile.visit_purpose)
+                    : "—",
+                },
+              ].map((f) => (
+                <div key={f.label}>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {f.label}
+                  </p>
+                  <p className="mt-0.5 text-sm text-charcoal">{f.value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
 
           {/* Take / resume / redeem */}
           <div className="mt-10">

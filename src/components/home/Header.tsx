@@ -66,7 +66,7 @@ export function Header() {
             <Link href={routes.book}>Book a Test</Link>
           </Button>
           <Button asChild variant="outline" size="sm">
-            <Link href={routes.signIn}>Sign In</Link>
+            <Link href={routes.myProfile}>My Profile</Link>
           </Button>
         </div>
 
@@ -146,8 +146,8 @@ export function Header() {
               </Link>
             </Button>
             <Button asChild variant="outline" className="w-full">
-              <Link href={routes.signIn} onClick={() => setOpen(false)}>
-                Sign In
+              <Link href={routes.myProfile} onClick={() => setOpen(false)}>
+                My Profile
               </Link>
             </Button>
           </div>
