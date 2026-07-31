@@ -26,6 +26,7 @@ import {
   certifiedLevel,
   totalCorrect,
   levelName,
+  levelDescription,
   type SectionTally,
 } from "@/lib/certificates/eligibility";
 import { generateCertificatePdf } from "@/lib/certificates/pdf";
@@ -36,6 +37,7 @@ import {
 } from "@/lib/certificates/integrity";
 
 export const CERTIFICATES_BUCKET = "certificates";
+export const CERTIFICATE_PHOTOS_BUCKET = "certificate-photos";
 const CERT_VALIDITY_YEARS = 1;
 
 export interface FinalizeResult {
@@ -169,9 +171,25 @@ export async function finalizeAttempt(
 
   const { data: profile } = await svc
     .from("profiles")
-    .select("full_name")
+    .select("full_name, national_id, certificate_photo_path, certificate_photo_status")
     .eq("id", attempt.user_id)
     .maybeSingle();
+
+  // Optional certificate photo: only embed one that an admin has APPROVED.
+  let candidatePhoto: Uint8Array | null = null;
+  if (
+    profile?.certificate_photo_path &&
+    profile.certificate_photo_status === "approved"
+  ) {
+    try {
+      const { data: blob } = await svc.storage
+        .from(CERTIFICATE_PHOTOS_BUCKET)
+        .download(profile.certificate_photo_path);
+      if (blob) candidatePhoto = new Uint8Array(await blob.arrayBuffer());
+    } catch {
+      /* photo fetch failed — leave the box blank */
+    }
+  }
 
   const issuedAt = new Date();
   const expiresAt = new Date(issuedAt);
@@ -241,10 +259,13 @@ export async function finalizeAttempt(
     const pdf = await generateCertificatePdf(
       {
         candidateName: profile?.full_name ?? "Candidate",
+        candidatePhoto,
         level,
         levelName: levelName(level),
+        levelDescription: levelDescription(level),
         score: scoreOutOf100,
         certCode,
+        candidateId: profile?.national_id ?? "",
         issuedAt,
         expiresAt,
         verifyUrl: verifyUrlFor(certCode),

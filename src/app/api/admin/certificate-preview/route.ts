@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { generateCertificatePdf } from "@/lib/certificates/pdf";
 import { verifyUrlFor } from "@/lib/certificates/finalize";
 import { loadCertificateTemplate } from "@/lib/certificates/template.server";
-import { levelName } from "@/lib/certificates/eligibility";
+import { levelName, levelDescription } from "@/lib/certificates/eligibility";
 
 export const dynamic = "force-dynamic";
 
@@ -48,10 +48,13 @@ export async function GET(request: Request) {
     const pdf = await generateCertificatePdf(
       {
         candidateName: "Sample Candidate",
+        candidatePhoto: null,
         level,
         levelName: levelName(level),
+        levelDescription: levelDescription(level),
         score,
         certCode,
+        candidateId: "29800000000000",
         issuedAt,
         expiresAt,
         verifyUrl: verifyUrlFor(certCode),

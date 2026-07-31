@@ -9,7 +9,7 @@
 
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
-const TEMPLATE_PATH = "/Certificate-template.png";
+const TEMPLATE_PATH = "/LBETemplate.png";
 
 export async function loadCertificateTemplate(): Promise<Uint8Array> {
   const { env } = getCloudflareContext();

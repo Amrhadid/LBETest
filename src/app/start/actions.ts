@@ -301,7 +301,7 @@ export async function recordAttemptMeta(
  */
 export async function saveIdVerification(
   attemptId: string,
-  paths: { idPath: string; selfiePath: string },
+  paths: { idPath: string; selfiePath: string; nationalId: string },
 ): Promise<ActionState> {
   const supabase = await createClient();
   const {
@@ -313,11 +313,17 @@ export async function saveIdVerification(
   }
   const idPath = (paths.idPath ?? "").trim();
   const selfiePath = (paths.selfiePath ?? "").trim();
+  // National ID becomes the printed "Candidate ID" — required, kept per account.
+  const nationalId = (paths.nationalId ?? "").trim();
+  if (nationalId.length < 4 || nationalId.length > 32) {
+    return { error: "Enter a valid National ID." };
+  }
   // Paths must belong to this user (RLS convention: first segment = user id).
   if (!idPath.startsWith(`${user.id}/`) || !selfiePath.startsWith(`${user.id}/`)) {
     return { error: "Invalid image paths." };
   }
-  const { error } = await createServiceRoleClient()
+  const svc = createServiceRoleClient();
+  const { error } = await svc
     .from("attempts")
     .update({
       id_image_path: idPath,
@@ -326,6 +332,8 @@ export async function saveIdVerification(
     })
     .eq("id", attemptId);
   if (error) return { error: "Could not save your verification. Please retry." };
+  // Store the National ID on the candidate's profile (stable across certs).
+  await svc.from("profiles").update({ national_id: nationalId }).eq("id", user.id);
   return { message: "verified" };
 }
 

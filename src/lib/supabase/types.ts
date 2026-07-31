@@ -33,6 +33,9 @@ export interface Database {
           full_name: string | null;
           role: Role;
           locale: string | null;
+          national_id: string | null;
+          certificate_photo_path: string | null;
+          certificate_photo_status: string | null;
           created_at: string;
         };
         Insert: {
@@ -40,6 +43,9 @@ export interface Database {
           full_name?: string | null;
           role?: Role;
           locale?: string | null;
+          national_id?: string | null;
+          certificate_photo_path?: string | null;
+          certificate_photo_status?: string | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;

@@ -1,131 +1,129 @@
 /**
- * Official certificate renderer — Cloudflare Workers / edge-safe.
+ * Official LBE Test certificate renderer — Cloudflare Workers / edge-safe.
  *
- * The visual design is the uploaded artwork (`public/Certificate-template.png`,
- * a blank A4-portrait template). We embed it as a full-page background and
- * overlay ONLY the dynamic fields (name, level number, score, date, certificate
- * id, validity date, QR). This makes every generated certificate pixel-identical
- * to the approved design with only the variables swapped.
+ * The design is the uploaded artwork (`public/LBETemplate.png`, a blank
+ * A4-portrait template). We embed it as a full-page background and overlay ONLY
+ * the dynamic fields at coordinates measured by scanning the template pixels
+ * (see the detection tooling). Everything else — logo, seal, signature, borders,
+ * skill icons, and all fixed text — is baked into the template.
  *
- * `templatePng` is supplied by the caller: at runtime via the Cloudflare ASSETS
- * binding (see loadCertificateTemplate), and from disk in the preview tooling.
+ * Dynamic: candidate name, optional candidate photo, score, level number, level
+ * name, level description, certificate id, candidate id, issue date, valid until,
+ * and the verify QR. `templatePng` is supplied by the caller (ASSETS binding at
+ * runtime; disk in the preview tooling).
  */
-import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFImage, type PDFPage } from "pdf-lib";
 import QRCode from "qrcode";
 
-const INK = rgb(0.012, 0.125, 0.227); // Locrativ Ink #03203A
-const GOLD = rgb(0.855, 0.62, 0.18);
+const INK = rgb(0.055, 0.122, 0.239); // deep navy
+const GOLD = rgb(0.776, 0.541, 0.118);
+const BODY = rgb(0.16, 0.2, 0.26);
 
-// A4 portrait points; the template art has the same aspect ratio (1054×1492).
+// A4 portrait points; the template art has the same aspect ratio (1055×1491).
 const W = 595.28;
 const H = 841.89;
 
 export interface CertificatePdfInput {
   candidateName: string;
+  /** Optional candidate photo (JPEG or PNG bytes). Box left blank if absent. */
+  candidatePhoto?: Uint8Array | null;
+  /** Percentage score, 0–100. */
+  score: number;
   level: number;
   levelName: string;
-  /** Percentage score, from 0 through 100. */
-  score: number;
+  levelDescription: string;
+  /** Certificate ID (public code). */
   certCode: string;
+  /** Candidate ID (the candidate's stable identifier). */
+  candidateId: string;
   issuedAt: Date;
   expiresAt: Date;
   verifyUrl: string;
 }
 
 /**
- * Overlay field positions, as fractions of the page measured from the TOP-LEFT
- * of the template (so they map 1:1 to the artwork). Tune here if the art moves.
+ * Field geometry as fractions of the page, measured from the TOP-LEFT of the
+ * template by scanning its pixels. `line` fractions are the detected underline
+ * positions; text baselines sit a small gap ABOVE them so the line reads as an
+ * underline. Boxes are [left, top, right, bottom].
  */
 const POS = {
-  name: { cx: 0.5, top: 0.35, size: 34 },
-  levelNum: { cx: 0.548, top: 0.507, size: 28 },
-  // For underlined fields, `top` (the baseline) sits a ~3pt gap ABOVE the
-  // detected underline so the line reads as an underline, not a strikethrough.
-  // Detected line positions: score 0.7144, date/certId 0.8373, validity 0.8456.
-  score: { rightX: 0.375, top: 0.71, size: 30 },
-  date: { cx: 0.196, top: 0.834, size: 9 },
-  certId: { cx: 0.388, top: 0.834, size: 8.5 },
-  validityUntil: { cx: 0.605, top: 0.849, size: 7.5 },
-  qr: { left: 0.662, top: 0.872, size: 0.083 }, // size = fraction of page width
-};
+  name: { cx: 0.453, line: 0.3587, size: 30, maxW: 0.55 },
+  photo: { l: 0.774, t: 0.28, r: 0.909, b: 0.401 },
+  score: { rightX: 0.333, line: 0.5802, size: 46 },
+  levelNum: { leftX: 0.792, baseline: 0.556, size: 58 },
+  levelName: { cx: 0.723, line: 0.5802, size: 15, maxW: 0.30 },
+  desc1: { cx: 0.5015, line: 0.6277, size: 11.5 },
+  desc2: { cx: 0.5015, line: 0.6502, size: 11.5 },
+  certId: { cx: 0.171, line: 0.8135, size: 10 },
+  candId: { cx: 0.397, line: 0.8135, size: 10 },
+  issue: { cx: 0.606, line: 0.8135, size: 10 },
+  validUntil: { cx: 0.812, line: 0.8135, size: 10 },
+  qr: { l: 0.747, t: 0.834, size: 0.126 },
+} as const;
+
+/** ~3pt gap so the baseline sits above the underline (not through the text). */
+const GAP = 3 / H;
 
 function shortDate(d: Date) {
   return new Intl.DateTimeFormat("en-GB", {
     day: "2-digit", month: "short", year: "numeric", timeZone: "UTC",
-  }).format(d);
+  }).format(d).toUpperCase();
 }
 
-/** Draw `text` horizontally centred on `cx`, baseline at `top` (from page top). */
+/** Draw `text` centred on cx, baseline `top` fraction from the page top. */
 function centerAt(page: PDFPage, font: PDFFont, text: string, cx: number, top: number, size: number, color = INK) {
   const w = font.widthOfTextAtSize(text, size);
   page.drawText(text, { x: cx * W - w / 2, y: H * (1 - top), size, font, color });
 }
 
-/** Draw the QR for `url` as filled squares inside a box (points, y from top). */
+/** Shrink `size` until `text` fits within `maxWFrac` of the page width. */
+function fit(font: PDFFont, text: string, size: number, maxWFrac: number, min = 10) {
+  let s = size;
+  while (s > min && font.widthOfTextAtSize(text, s) > maxWFrac * W) s -= 0.5;
+  return s;
+}
+
+/** Wrap text to at most two lines that each fit `maxWFrac` of the page width. */
+function wrapTwo(font: PDFFont, text: string, size: number, maxWFrac: number): [string, string] {
+  const words = text.split(/\s+/);
+  const maxW = maxWFrac * W;
+  let l1 = "";
+  let i = 0;
+  for (; i < words.length; i++) {
+    const t = l1 ? `${l1} ${words[i]}` : words[i];
+    if (font.widthOfTextAtSize(t, size) > maxW && l1) break;
+    l1 = t;
+  }
+  const l2 = words.slice(i).join(" ");
+  return [l1, l2];
+}
+
 function drawQr(page: PDFPage, url: string, leftFrac: number, topFrac: number, sizeFrac: number) {
   const box = sizeFrac * W;
   const x = leftFrac * W;
-  const yTop = H * (1 - topFrac); // top edge of the box in PDF coords
-  const y = yTop - box; // bottom edge
+  const y = H * (1 - topFrac) - box;
   const qr = QRCode.create(url, { errorCorrectionLevel: "M" });
   const n = qr.modules.size;
-  const px = box / n;
+  const p = box / n;
   page.drawRectangle({ x, y, width: box, height: box, color: rgb(1, 1, 1) });
   for (let r = 0; r < n; r++) {
     for (let c = 0; c < n; c++) {
       if (qr.modules.data[r * n + c]) {
-        page.drawRectangle({
-          x: x + c * px,
-          y: y + (n - 1 - r) * px,
-          width: px + 0.05,
-          height: px + 0.05,
-          color: INK,
-        });
+        page.drawRectangle({ x: x + c * p, y: y + (n - 1 - r) * p, width: p + 0.05, height: p + 0.05, color: INK });
       }
     }
   }
 }
 
-/**
- * Calibration overlay: a labelled fractional grid + a baseline/center marker for
- * every dynamic field, drawn on top of the artwork. Lets us read each field's
- * true slot position against the template in one render instead of guessing.
- * Only used by the debug tooling — never in production output.
- */
-function drawCalibration(page: PDFPage, font: PDFFont) {
-  const steps = 40; // every 0.025
-  for (let i = 0; i <= steps; i++) {
-    const f = i / steps;
-    const major = i % 4 === 0; // every 0.10
-    const x = f * W;
-    const yTop = H * (1 - f);
-    const t = major ? 0.6 : 0.25;
-    // Grid lines drawn as thin filled rects (strokes don't rasterize reliably).
-    page.drawRectangle({ x, y: 0, width: t, height: H, color: rgb(0, 0, 0.85), opacity: major ? 0.5 : 0.22 });
-    page.drawRectangle({ x: 0, y: yTop, width: W, height: t, color: rgb(0.85, 0, 0), opacity: major ? 0.5 : 0.22 });
-    if (major) {
-      page.drawText(f.toFixed(2), { x: x + 0.5, y: H - 8, size: 5.5, font, color: rgb(0, 0, 0.85) });
-      page.drawText(f.toFixed(2), { x: 1, y: yTop - 1.5, size: 5.5, font, color: rgb(0.85, 0, 0) });
-    }
+async function embedPhoto(pdf: PDFDocument, bytes: Uint8Array): Promise<PDFImage | null> {
+  try {
+    if (bytes[0] === 0xff && bytes[1] === 0xd8) return await pdf.embedJpg(bytes);
+    if (bytes[0] === 0x89 && bytes[1] === 0x50) return await pdf.embedPng(bytes);
+  } catch {
+    /* unsupported/corrupt image — leave the box blank */
   }
-  // Mark each field: a magenta baseline strip + its label.
-  const mark = (label: string, cx: number, top: number, halfW = 0.06) => {
-    const y = H * (1 - top);
-    page.drawRectangle({ x: (cx - halfW) * W, y, width: 2 * halfW * W, height: 0.8, color: rgb(1, 0, 1), opacity: 0.9 });
-    page.drawText(`${label} ${top.toFixed(3)}`, { x: (cx - halfW) * W, y: y + 2, size: 5, font, color: rgb(0.6, 0, 0.6) });
-  };
-  mark("name", POS.name.cx, POS.name.top);
-  mark("level", POS.levelNum.cx, POS.levelNum.top, 0.03);
-  mark("score", POS.score.rightX - 0.03, POS.score.top, 0.03);
-  mark("date", POS.date.cx, POS.date.top);
-  mark("certId", POS.certId.cx, POS.certId.top);
-  mark("until", POS.validityUntil.cx, POS.validityUntil.top);
-  // QR box outline (as 4 thin filled rects).
-  const qx = POS.qr.left * W, qs = POS.qr.size * W, qyTop = H * (1 - POS.qr.top), qy = qyTop - qs;
-  for (const r of [
-    { x: qx, y: qy, width: qs, height: 1 }, { x: qx, y: qyTop, width: qs, height: 1 },
-    { x: qx, y: qy, width: 1, height: qs }, { x: qx + qs, y: qy, width: 1, height: qs },
-  ]) page.drawRectangle({ ...r, color: rgb(0, 0.6, 0), opacity: 0.9 });
+  return null;
 }
 
 export async function generateCertificatePdf(
@@ -135,7 +133,7 @@ export async function generateCertificatePdf(
 ): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
   pdf.setTitle(`LBE Certificate — ${input.certCode}`);
-  pdf.setAuthor("Locrativ Business English Test");
+  pdf.setAuthor("LBE Test");
   pdf.setProducer("LBETest.com");
 
   const page = pdf.addPage([W, H]);
@@ -143,42 +141,72 @@ export async function generateCertificatePdf(
   const sans = await pdf.embedFont(StandardFonts.Helvetica);
   const sansBold = await pdf.embedFont(StandardFonts.HelveticaBold);
 
-  // Full-page artwork background.
-  const bg = await pdf.embedPng(templatePng);
-  page.drawImage(bg, { x: 0, y: 0, width: W, height: H });
+  page.drawImage(await pdf.embedPng(templatePng), { x: 0, y: 0, width: W, height: H });
 
-  // --- Overlays (dynamic only) --------------------------------------------
   if (opts.gridOnly) {
     drawCalibration(page, sans);
     return pdf.save();
   }
-  const name = input.candidateName.trim() || "Candidate";
-  // Shrink the name to fit if it's long.
-  let nameSize = POS.name.size;
-  while (nameSize > 16 && serifBold.widthOfTextAtSize(name, nameSize) > 0.72 * W) nameSize -= 0.5;
-  centerAt(page, serifBold, name, POS.name.cx, POS.name.top, nameSize, INK);
 
-  // Level number inside the "LBE _" badge (gold on the navy plaque).
-  centerAt(page, serifBold, String(input.level), POS.levelNum.cx, POS.levelNum.top, POS.levelNum.size, GOLD);
+  // Candidate name.
+  const name = input.candidateName.trim().toUpperCase() || "CANDIDATE";
+  centerAt(page, serifBold, name, POS.name.cx, POS.name.line - GAP, fit(serifBold, name, POS.name.size, POS.name.maxW, 14), INK);
 
-  // Score: right-aligned just before the baked "/100".
+  // Candidate photo (optional) — fills the framed box if present.
+  if (input.candidatePhoto && input.candidatePhoto.length > 0) {
+    const img = await embedPhoto(pdf, input.candidatePhoto);
+    if (img) {
+      const bx = POS.photo.l * W, by = H * (1 - POS.photo.b);
+      const bw = (POS.photo.r - POS.photo.l) * W, bh = (POS.photo.b - POS.photo.t) * H;
+      const inset = 2;
+      page.drawImage(img, { x: bx + inset, y: by + inset, width: bw - 2 * inset, height: bh - 2 * inset });
+    }
+  }
+
+  // Score (right-aligned just before the baked "/100").
   const scoreText = String(Math.round(input.score));
-  const sw = sansBold.widthOfTextAtSize(scoreText, POS.score.size);
   page.drawText(scoreText, {
-    x: POS.score.rightX * W - sw,
-    y: H * (1 - POS.score.top),
-    size: POS.score.size,
-    font: sansBold,
-    color: INK,
+    x: POS.score.rightX * W - serifBold.widthOfTextAtSize(scoreText, POS.score.size),
+    y: H * (1 - (POS.score.line - GAP)), size: POS.score.size, font: serifBold, color: INK,
   });
 
-  centerAt(page, sans, shortDate(input.issuedAt), POS.date.cx, POS.date.top, POS.date.size, INK);
-  centerAt(page, sans, input.certCode, POS.certId.cx, POS.certId.top, POS.certId.size, INK);
-  centerAt(page, sans, shortDate(input.expiresAt), POS.validityUntil.cx, POS.validityUntil.top, POS.validityUntil.size, INK);
+  // Level number after the baked "LBE" (gold), and level name on the line below.
+  page.drawText(String(input.level), {
+    x: POS.levelNum.leftX * W, y: H * (1 - POS.levelNum.baseline), size: POS.levelNum.size, font: serifBold, color: GOLD,
+  });
+  const lname = input.levelName.toUpperCase();
+  centerAt(page, serifBold, lname, POS.levelName.cx, POS.levelName.line - GAP, fit(serifBold, lname, POS.levelName.size, POS.levelName.maxW, 9), INK);
 
-  drawQr(page, input.verifyUrl, POS.qr.left, POS.qr.top, POS.qr.size);
+  // Level description (up to two centred lines).
+  const [d1, d2] = wrapTwo(sans, input.levelDescription.trim(), POS.desc1.size, 0.52);
+  if (d1) centerAt(page, sans, d1, POS.desc1.cx, POS.desc1.line - GAP, POS.desc1.size, BODY);
+  if (d2) centerAt(page, sans, d2, POS.desc2.cx, POS.desc2.line - GAP, POS.desc2.size, BODY);
+
+  // Bottom info row.
+  centerAt(page, sansBold, input.certCode, POS.certId.cx, POS.certId.line - GAP, POS.certId.size, INK);
+  centerAt(page, sansBold, input.candidateId || "—", POS.candId.cx, POS.candId.line - GAP, POS.candId.size, INK);
+  centerAt(page, sansBold, shortDate(input.issuedAt), POS.issue.cx, POS.issue.line - GAP, POS.issue.size, INK);
+  centerAt(page, sansBold, shortDate(input.expiresAt), POS.validUntil.cx, POS.validUntil.line - GAP, POS.validUntil.size, INK);
+
+  drawQr(page, input.verifyUrl, POS.qr.l, POS.qr.t, POS.qr.size);
 
   if (opts.debug) drawCalibration(page, sans);
 
   return pdf.save();
+}
+
+// ---------------------------------------------------------------------------
+// Calibration overlay (debug tooling only; never in production output).
+// ---------------------------------------------------------------------------
+function drawCalibration(page: PDFPage, font: PDFFont) {
+  const steps = 40;
+  for (let i = 0; i <= steps; i++) {
+    const f = i / steps, major = i % 4 === 0, x = f * W, yTop = H * (1 - f), t = major ? 0.6 : 0.25;
+    page.drawRectangle({ x, y: 0, width: t, height: H, color: rgb(0, 0, 0.85), opacity: major ? 0.5 : 0.22 });
+    page.drawRectangle({ x: 0, y: yTop, width: W, height: t, color: rgb(0.85, 0, 0), opacity: major ? 0.5 : 0.22 });
+    if (major) {
+      page.drawText(f.toFixed(2), { x: x + 0.5, y: H - 8, size: 5.5, font, color: rgb(0, 0, 0.85) });
+      page.drawText(f.toFixed(2), { x: 1, y: yTop - 1.5, size: 5.5, font, color: rgb(0.85, 0, 0) });
+    }
+  }
 }

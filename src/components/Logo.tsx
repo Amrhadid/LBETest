@@ -23,8 +23,8 @@ export function Logo({
     <AssetImage
       src="/LBELogo.png"
       alt={title}
-      width={1808}
-      height={904}
+      width={4000}
+      height={1250}
       className={cn("h-12 w-auto object-contain", className)}
       fallbackClassName="h-12 w-40 rounded"
     />
@@ -43,8 +43,8 @@ export function LogoMark({
     <AssetImage
       src="/LBELogo.png"
       alt={title}
-      width={1808}
-      height={904}
+      width={4000}
+      height={1250}
       className={cn("h-11 w-auto object-contain", className)}
       fallbackClassName={cn("h-11 w-11 rounded-xl", className)}
     />

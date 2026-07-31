@@ -64,3 +64,16 @@ export function totalCorrect(tallies: SectionTally[]): number {
 export function levelName(level: number): string {
   return LEVEL_NAMES[level] ?? "";
 }
+
+/** Short per-level description shown on the certificate (editable copy). */
+export const LEVEL_DESCRIPTIONS: Record<number, string> = {
+  1: "Can handle everyday workplace communication with confidence, including emails, greetings, and basic requests.",
+  2: "Can manage routine business communication such as scheduling, customer service, and order-related correspondence.",
+  3: "Can participate effectively in meetings, emails, and professional discussions.",
+  4: "Can communicate complex business ideas, manage stakeholder relationships, and navigate high-stakes professional situations.",
+  5: "Can operate at an executive level, communicating with authority on governance, strategy, and high-level business matters.",
+};
+
+export function levelDescription(level: number): string {
+  return LEVEL_DESCRIPTIONS[level] ?? "";
+}
