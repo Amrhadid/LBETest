@@ -48,10 +48,10 @@ export const metadata: Metadata = {
     description: siteConfig.description,
   },
   icons: {
-    // Use the supplied Locrativ logo everywhere (browser tab, bookmarks, iOS).
-    icon: [{ url: "/Logo.png", type: "image/png" }],
-    shortcut: [{ url: "/Logo.png", type: "image/png" }],
-    apple: [{ url: "/Logo.png", type: "image/png" }],
+    // The LBE Test wordmark (browser tab, bookmarks, iOS).
+    icon: [{ url: "/LBELogo.png", type: "image/png" }],
+    shortcut: [{ url: "/LBELogo.png", type: "image/png" }],
+    apple: [{ url: "/LBELogo.png", type: "image/png" }],
   },
 };
 
