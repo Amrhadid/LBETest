@@ -39,10 +39,13 @@ export interface CertificatePdfInput {
 const POS = {
   name: { cx: 0.5, top: 0.35, size: 34 },
   levelNum: { cx: 0.548, top: 0.507, size: 28 },
-  score: { rightX: 0.375, top: 0.72, size: 30 },
-  date: { cx: 0.196, top: 0.844, size: 9 },
-  certId: { cx: 0.388, top: 0.844, size: 8.5 },
-  validityUntil: { cx: 0.605, top: 0.852, size: 7.5 },
+  // For underlined fields, `top` (the baseline) sits a ~3pt gap ABOVE the
+  // detected underline so the line reads as an underline, not a strikethrough.
+  // Detected line positions: score 0.7144, date/certId 0.8373, validity 0.8456.
+  score: { rightX: 0.375, top: 0.71, size: 30 },
+  date: { cx: 0.196, top: 0.834, size: 9 },
+  certId: { cx: 0.388, top: 0.834, size: 8.5 },
+  validityUntil: { cx: 0.605, top: 0.849, size: 7.5 },
   qr: { left: 0.662, top: 0.872, size: 0.083 }, // size = fraction of page width
 };
 
