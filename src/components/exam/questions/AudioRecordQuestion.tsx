@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Mic, Square, RotateCcw, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import fixWebmDuration from "fix-webm-duration";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,7 @@ export function AudioRecordQuestion({
   const streamRef = React.useRef<MediaStream | null>(null);
   const blobRef = React.useRef<Blob | null>(null);
   const timerRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
+  const startedAtRef = React.useRef(0);
 
   const isSpeakingAboutSource =
     item.question_type === QuestionType.SpeakAboutSource;
@@ -91,10 +93,26 @@ export function AudioRecordQuestion({
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) chunksRef.current.push(e.data);
       };
-      recorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, {
-          type: mime || "audio/webm",
-        });
+      recorder.onstop = async () => {
+        const type = mime || "audio/webm";
+        const raw = new Blob(chunksRef.current, { type });
+        // MediaRecorder writes WEBM with NO duration in its header (it's
+        // finalized before recording stops). That makes both the <audio>
+        // element and Google Speech-to-Text unable to determine the clip
+        // length — STT then rejects it outright. Patch the real duration in
+        // before preview/upload so playback shows the length and STT accepts it.
+        let blob = raw;
+        if (type.includes("webm") && startedAtRef.current > 0) {
+          const durationMs = Math.max(
+            0,
+            performance.now() - startedAtRef.current,
+          );
+          try {
+            blob = await fixWebmDuration(raw, durationMs);
+          } catch {
+            blob = raw; // Fall back to the raw clip if patching fails.
+          }
+        }
         blobRef.current = blob;
         if (previewUrl) URL.revokeObjectURL(previewUrl);
         setPreviewUrl(URL.createObjectURL(blob));
@@ -103,6 +121,7 @@ export function AudioRecordQuestion({
       };
 
       recorder.start();
+      startedAtRef.current = performance.now();
       setElapsed(0);
       timerRef.current = setInterval(() => setElapsed((s) => s + 1), 1000);
       setPhase("recording");
