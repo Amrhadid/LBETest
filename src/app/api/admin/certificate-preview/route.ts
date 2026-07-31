@@ -54,7 +54,7 @@ export async function GET(request: Request) {
         levelDescription: levelDescription(level),
         score,
         certCode,
-        candidateId: "29800000000000",
+        candidateId: "CID-7K2M9Q",
         issuedAt,
         expiresAt,
         verifyUrl: verifyUrlFor(certCode),

@@ -61,6 +61,14 @@ function makeCertCode(level: number): string {
   return `LBE-${level}-${rand}`;
 }
 
+/** Stable per-account Candidate ID: CID-<6 base32 chars>. Distinct from cert codes. */
+function makeCandidateCode(): string {
+  const alphabet = "ABCDEFGHJKMNPQRSTVWXYZ23456789"; // no ambiguous chars
+  const bytes = crypto.getRandomValues(new Uint8Array(6));
+  const rand = [...bytes].map((b) => alphabet[b % alphabet.length]).join("");
+  return `CID-${rand}`;
+}
+
 export async function finalizeAttempt(
   attemptId: string,
 ): Promise<FinalizeResult> {
@@ -171,9 +179,33 @@ export async function finalizeAttempt(
 
   const { data: profile } = await svc
     .from("profiles")
-    .select("full_name, national_id, certificate_photo_path, certificate_photo_status")
+    .select("full_name, candidate_code, certificate_photo_path, certificate_photo_status")
     .eq("id", attempt.user_id)
     .maybeSingle();
+
+  // Candidate ID: a stable, system-generated code per account (printed on every
+  // certificate the candidate earns). Lazily generated the first time we issue
+  // one, then reused. Unique index guards; retry on the rare collision.
+  let candidateCode = profile?.candidate_code ?? "";
+  if (!candidateCode) {
+    for (let i = 0; i < 5 && !candidateCode; i++) {
+      const code = makeCandidateCode();
+      const { error: ccErr } = await svc
+        .from("profiles")
+        .update({ candidate_code: code })
+        .eq("id", attempt.user_id)
+        .is("candidate_code", null);
+      if (!ccErr) {
+        // Re-read to confirm ours won (or another concurrent run set one).
+        const { data: p2 } = await svc
+          .from("profiles")
+          .select("candidate_code")
+          .eq("id", attempt.user_id)
+          .maybeSingle();
+        candidateCode = p2?.candidate_code ?? "";
+      }
+    }
+  }
 
   // Optional certificate photo: only embed one that an admin has APPROVED.
   let candidatePhoto: Uint8Array | null = null;
@@ -265,7 +297,7 @@ export async function finalizeAttempt(
         levelDescription: levelDescription(level),
         score: scoreOutOf100,
         certCode,
-        candidateId: profile?.national_id ?? "",
+        candidateId: candidateCode,
         issuedAt,
         expiresAt,
         verifyUrl: verifyUrlFor(certCode),

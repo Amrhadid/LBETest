@@ -29,7 +29,6 @@ export function IdVerificationGate({
   /** Acquire (once) or return the shared camera+mic stream, plus any error. */
   ensureCamera: () => Promise<{ stream: MediaStream | null; error?: unknown }>;
 }) {
-  const [nationalId, setNationalId] = React.useState("");
   const [idFile, setIdFile] = React.useState<File | null>(null);
   const [idPreview, setIdPreview] = React.useState<string>("");
   const [selfie, setSelfie] = React.useState<Blob | null>(null);
@@ -91,7 +90,7 @@ export function IdVerificationGate({
   };
 
   const submit = async () => {
-    if (!idFile || !selfie || nationalId.trim().length < 4) return;
+    if (!idFile || !selfie) return;
     setSubmitting(true);
     setErr("");
     try {
@@ -99,7 +98,7 @@ export function IdVerificationGate({
         uploadIdImage({ supabase, blob: idFile, userId, attemptId, kind: "id" }),
         uploadIdImage({ supabase, blob: selfie, userId, attemptId, kind: "selfie" }),
       ]);
-      const res = await saveIdVerification(attemptId, { idPath, selfiePath, nationalId: nationalId.trim() });
+      const res = await saveIdVerification(attemptId, { idPath, selfiePath });
       if (res?.error) {
         setErr(res.error);
         setSubmitting(false);
@@ -122,24 +121,6 @@ export function IdVerificationGate({
         <p className="mt-3 text-sm text-muted-foreground">
           Upload a photo of your government ID and take a quick selfie. A proctor
           compares them before your result is released. This step is required.
-        </p>
-      </div>
-
-      <div className="mx-auto mt-6 max-w-sm">
-        <label htmlFor="national-id" className="mb-1 block text-sm font-medium text-charcoal">
-          National ID
-        </label>
-        <input
-          id="national-id"
-          value={nationalId}
-          onChange={(e) => setNationalId(e.target.value)}
-          inputMode="numeric"
-          autoComplete="off"
-          placeholder="Your National ID"
-          className="w-full rounded-md border border-gold/30 bg-background px-3 py-2 text-sm"
-        />
-        <p className="mt-1 text-xs text-muted-foreground">
-          Appears as your Candidate ID on the certificate. Required.
         </p>
       </div>
 
@@ -211,7 +192,7 @@ export function IdVerificationGate({
           type="button"
           variant="gold"
           size="lg"
-          disabled={!idFile || !selfie || nationalId.trim().length < 4 || submitting}
+          disabled={!idFile || !selfie || submitting}
           onClick={submit}
         >
           {submitting ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
