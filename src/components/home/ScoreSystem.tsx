@@ -31,7 +31,7 @@ const levels: Level[] = [
   },
   {
     code: "LBE4",
-    name: "Advanced Professional",
+    name: "Advanced",
     blurb:
       "Can communicate fluently and confidently in complex business situations that require precision, adaptability and professional judgment.",
   },

@@ -3,57 +3,50 @@ import * as React from "react";
 import { AssetImage } from "@/components/AssetImage";
 import { cn } from "@/lib/utils";
 
+/**
+ * The official LBE Test wordmark (black "LBE" + gold "TEST" pill + the
+ * "Business English Test" subtitle), supplied as a single transparent PNG.
+ * It replaces the previous icon-plus-"LOCRATIV" lockup. Rendered by height so
+ * it scales cleanly; the artwork carries its own subtitle, so `subtitle`/`tone`
+ * are accepted for call-site compatibility but no longer affect the mark.
+ */
+export function Logo({
+  className,
+  title = "LBE Test — Business English Test",
+}: {
+  className?: string;
+  subtitle?: boolean;
+  tone?: "light" | "dark";
+  title?: string;
+}) {
+  return (
+    <AssetImage
+      src="/LBELogo.png"
+      alt={title}
+      width={4000}
+      height={1250}
+      className={cn("h-12 w-auto object-contain", className)}
+      fallbackClassName="h-12 w-40 rounded"
+    />
+  );
+}
+
+/** The LBE wordmark for compact spots. */
 export function LogoMark({
   className,
-  title = "Locrativ",
+  title = "LBE Test",
 }: {
   className?: string;
   title?: string;
 }) {
   return (
     <AssetImage
-      src="/Logo.png"
+      src="/LBELogo.png"
       alt={title}
-      width={1024}
-      height={1024}
-      className={cn("h-11 w-11 rounded-[22%] object-contain", className)}
+      width={4000}
+      height={1250}
+      className={cn("h-11 w-auto object-contain", className)}
       fallbackClassName={cn("h-11 w-11 rounded-xl", className)}
     />
-  );
-}
-
-export function Logo({
-  className,
-  subtitle = true,
-  tone = "light",
-}: {
-  className?: string;
-  subtitle?: boolean;
-  tone?: "light" | "dark";
-}) {
-  return (
-    <span className={cn("inline-flex items-center gap-3", className)}>
-      <LogoMark className="h-10 w-10" />
-      <span className="flex flex-col leading-none">
-        <span
-          className={cn(
-            "font-sans text-[1.05rem] font-bold tracking-[0.14em]",
-            tone === "dark" ? "text-white" : "text-charcoal",
-          )}
-        >
-          LOCRATIV
-        </span>
-        {subtitle && (
-          <span
-            className={cn(
-              "mt-1 text-[0.6rem] font-semibold uppercase tracking-[0.22em]",
-              tone === "dark" ? "text-gold-soft" : "text-gold",
-            )}
-          >
-            Business English Test
-          </span>
-        )}
-      </span>
-    </span>
   );
 }

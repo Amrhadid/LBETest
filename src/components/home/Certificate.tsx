@@ -15,7 +15,7 @@ export function Certificate({ className }: { className?: string }) {
       />
       <div className="cert-shine corner-frame relative aspect-[210/297] w-full overflow-hidden border border-gold/35 bg-white p-1.5 shadow-paper transition-transform duration-500 sm:p-2 lg:[transform:rotateY(-3deg)_rotateZ(-0.7deg)] lg:hover:[transform:rotateY(0)_rotateZ(0)]">
         <AssetImage
-          src="/Certificate.png"
+          src="/LBECertificate.png"
           alt="Official Locrativ Certificate of Achievement sample"
           width={1055}
           height={1491}
