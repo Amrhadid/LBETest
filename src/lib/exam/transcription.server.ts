@@ -14,13 +14,21 @@ import { RESPONSE_AUDIO_BUCKET } from "@/lib/exam/storage";
  *
  * Recordings are WEBM_OPUS (MediaRecorder default), stored in the private
  * `responses-audio` bucket. We download with the service role, base64-encode,
- * and POST to speech:longrunningrecognize. Transcript text is returned for
- * grading and for reviewers to read without replaying audio.
+ * and POST to speech:recognize (sync). Transcript text is returned for grading
+ * and for reviewers to read without replaying audio.
  *
- * We use the async `longRunningRecognize` endpoint rather than sync `recognize`
- * because sync enforces a ~60s cap derived from the audio's declared duration,
- * and MediaRecorder WEBM_OPUS carries no duration in its header — so sync
- * rejects even short clips with `400 "Sync input too long"`.
+ * IMPORTANT — the WEBM_OPUS duration must be present in the container header.
+ * A raw MediaRecorder blob writes NO duration (the header is finalized before
+ * the recording stops), which makes Google reject the audio on every endpoint:
+ * sync `recognize` returns `400 "Sync input too long"` and even
+ * `longRunningRecognize` with inline content returns
+ * `400 "Inline audio exceeds duration limit. Please use a GCS URI."` — because
+ * Google can't verify the clip length. We therefore patch the real duration
+ * into the WebM on the CLIENT before upload (see AudioRecordQuestion), after
+ * which the clip is well-formed and short spoken answers transcribe fine via
+ * the sync endpoint (≤60s). We avoid longRunningRecognize entirely: its inline
+ * path has the same duration cap, and its GCS-URI path would need a Google
+ * Cloud Storage bucket we don't run.
  */
 
 /** Resolve the STT API key at runtime (Worker env first, then process.env). */
@@ -70,11 +78,9 @@ export type TranscribeCall = (args: {
   path: string;
 }) => Promise<TranscriptionResult>;
 
-const LONGRUNNING_URL =
-  "https://speech.googleapis.com/v1/speech:longrunningrecognize";
-const OPERATIONS_URL = "https://speech.googleapis.com/v1/operations";
+const STT_URL = "https://speech.googleapis.com/v1/speech:recognize";
 
-/** Recognition config shared by the sync + long-running paths. */
+/** Recognition config for the sync `recognize` call. */
 function recognitionConfig(encoding: string) {
   return {
     encoding,
@@ -120,81 +126,15 @@ function parseSttResponse(data: SttResponse): TranscriptionResult {
   return { text, speakerCount: Math.max(1, speakers.size) };
 }
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-/**
- * Primary path: the async `longRunningRecognize` operation (inline base64
- * content — no GCS bucket needed), polled until it completes.
- *
- * We use this instead of the sync `recognize` endpoint because sync enforces a
- * hard ~60s limit that Google derives from the audio's declared duration.
- * Browser `MediaRecorder` writes WEBM_OPUS whose container header carries NO
- * duration (the header is finalized before the recording stops), so Google
- * can't verify the length and rejects the sync request with
- * `400 "Sync input too long"` — even for clips well under a minute. The async
- * endpoint is not subject to that threshold, so it transcribes these
- * header-less clips reliably regardless of their real length.
- *
- * Bounded so a stuck operation can't hang the caller; on timeout we throw and
- * the response is marked for manual grading, same as any other STT failure.
- */
-async function longRunningTranscribe(
-  key: string,
-  encoding: string,
-  audio: Uint8Array,
-): Promise<TranscriptionResult> {
-  const start = await fetch(
-    `${LONGRUNNING_URL}?key=${encodeURIComponent(key)}`,
-    {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        config: recognitionConfig(encoding),
-        audio: { content: toBase64(audio) },
-      }),
-    },
-  );
-  if (!start.ok) {
-    const detail = await start.text().catch(() => "");
-    throw new Error(
-      `Google STT longrunning start error ${start.status}: ${detail.slice(0, 300)}`,
-    );
-  }
-  const { name } = (await start.json()) as { name?: string };
-  if (!name) throw new Error("Google STT longrunning returned no operation name.");
-
-  // Poll: ~20 tries × 4s = up to ~80s wall time (I/O wait, not CPU).
-  for (let i = 0; i < 20; i++) {
-    await sleep(4000);
-    const poll = await fetch(
-      `${OPERATIONS_URL}/${encodeURIComponent(name)}?key=${encodeURIComponent(key)}`,
-    );
-    if (!poll.ok) continue;
-    const op = (await poll.json()) as {
-      done?: boolean;
-      response?: SttResponse;
-      error?: { message?: string };
-    };
-    if (op.done) {
-      if (op.error) {
-        throw new Error(`Google STT longrunning failed: ${op.error.message ?? "unknown"}`);
-      }
-      return parseSttResponse(op.response ?? {});
-    }
-  }
-  throw new Error("Google STT longrunning timed out before completing.");
-}
-
 /**
  * The default {@link TranscribeCall}: Google Cloud Speech-to-Text (API key).
  *
- * Always transcribes via `longRunningRecognize`. We deliberately avoid the sync
- * `recognize` endpoint: its ~60s cap is derived from the audio's declared
- * duration, and browser-recorded WEBM_OPUS carries no duration in its header,
- * so sync rejects even short clips with `400 "Sync input too long"`. The async
- * endpoint has no such threshold and handles these header-less recordings
- * reliably. Our spoken answers are transcribed in a background grading job, so
- * the extra latency from polling is not user-visible.
+ * Sync `recognize` with inline base64 content. This works because spoken
+ * answers are short (≤60s) AND the client patches the real duration into the
+ * WebM before upload, so Google can verify the length. If the audio ever
+ * arrives without a duration (e.g. an old client that didn't patch), Google
+ * rejects it and we throw — the response is then marked for manual grading,
+ * same as any other STT failure.
  */
 export const googleTranscribeCall: TranscribeCall = async ({ audio, path }) => {
   const key = getGoogleSttApiKey();
@@ -203,7 +143,21 @@ export const googleTranscribeCall: TranscribeCall = async ({ audio, path }) => {
   }
 
   const { encoding } = encodingFor(path);
-  return longRunningTranscribe(key, encoding, audio);
+  const res = await fetch(`${STT_URL}?key=${encodeURIComponent(key)}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      config: recognitionConfig(encoding),
+      audio: { content: toBase64(audio) },
+    }),
+  });
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`Google STT error ${res.status}: ${detail.slice(0, 300)}`);
+  }
+
+  return parseSttResponse((await res.json()) as SttResponse);
 };
 
 /**
