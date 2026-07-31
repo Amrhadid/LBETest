@@ -42,7 +42,7 @@ export default async function AdminOverviewPage() {
       </div>
 
       <div className="mt-8 flex flex-wrap gap-4 text-sm">
-        <Link href="/admin/review" className="text-gold underline-offset-4 hover:underline">Go to grading →</Link>
+        <Link href="/admin/attempts?view=needs_grading" className="text-gold underline-offset-4 hover:underline">Go to grading →</Link>
         <Link href="/admin/attempts" className="text-gold underline-offset-4 hover:underline">View attempts →</Link>
         <Link href="/admin/access-codes" className="text-gold underline-offset-4 hover:underline">Manage access codes →</Link>
       </div>

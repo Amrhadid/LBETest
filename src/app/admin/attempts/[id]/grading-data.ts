@@ -1,6 +1,14 @@
-import type { Metadata } from "next";
+/**
+ * Load the AI-grading review cards for a single attempt (server-only).
+ *
+ * Pulls the attempt's open-ended responses that still need a human — proposals
+ * awaiting approval (pending_approval) and AI failures (failed) — resolves the
+ * item/rubric/transcript, and mints short-lived signed URLs for voice playback.
+ * Shaped into {@link PendingGrade}s the GradingReview client component renders.
+ */
 
-import { createClient } from "@/lib/supabase/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 import { RESPONSE_AUDIO_BUCKET } from "@/lib/exam/storage";
 import { answerText, isAiVoiceGraded, type Rubric } from "@/lib/exam/grading";
 import {
@@ -8,12 +16,7 @@ import {
   type QuestionType,
   type ResponseAnswer,
 } from "@/lib/exam/types";
-import { ReviewList, type PendingGrade } from "@/app/admin/review/ReviewList";
-
-export const metadata: Metadata = {
-  title: "Grade review",
-  description: "Approve or reject AI-proposed grades.",
-};
+import type { PendingGrade } from "@/app/admin/attempts/[id]/grading-types";
 
 interface ItemRow {
   id: string;
@@ -36,20 +39,21 @@ interface ResponseRow {
   grade_status: string | null;
 }
 
-export default async function ReviewPage() {
-  // Access is gated by the /admin layout (staff only).
-  const supabase = await createClient();
-
-  // Responses awaiting approval (RLS already restricts these to staff).
-  const { data: responses } = await supabase
+export async function loadAttemptGrades(
+  svc: SupabaseClient,
+  attemptId: string,
+): Promise<PendingGrade[]> {
+  const { data: responses } = await svc
     .from("responses")
     .select(
       "id, attempt_id, item_id, answer, transcript, ai_score, ai_is_correct, ai_confidence, ai_feedback, grade_status",
     )
+    .eq("attempt_id", attemptId)
     .in("grade_status", ["pending_approval", "failed"])
     .order("created_at", { ascending: true });
 
   const rows = (responses ?? []) as ResponseRow[];
+  if (rows.length === 0) return [];
 
   const itemIds = [
     ...new Set(rows.map((r) => r.item_id).filter(Boolean)),
@@ -57,7 +61,7 @@ export default async function ReviewPage() {
 
   const items = new Map<string, ItemRow>();
   if (itemIds.length > 0) {
-    const { data: itemRows } = await supabase
+    const { data: itemRows } = await svc
       .from("items")
       .select("id, prompt, question_type, lbe_level, rubric")
       .in("id", itemIds);
@@ -87,7 +91,7 @@ export default async function ReviewPage() {
       "audio_path" in answer &&
       typeof answer.audio_path === "string"
     ) {
-      const { data: signed } = await supabase.storage
+      const { data: signed } = await svc.storage
         .from(RESPONSE_AUDIO_BUCKET)
         .createSignedUrl(answer.audio_path, 60 * 30);
       audioUrl = signed?.signedUrl ?? null;
@@ -102,9 +106,7 @@ export default async function ReviewPage() {
       lbeLevel: item?.lbe_level ?? null,
       prompt: item?.prompt ?? null,
       isVoice,
-      candidateText: isVoice
-        ? (r.transcript ?? "")
-        : answerText(answer),
+      candidateText: isVoice ? (r.transcript ?? "") : answerText(answer),
       audioUrl,
       aiScore: r.ai_score,
       maxScore: rubric.max_score ?? 1,
@@ -117,23 +119,5 @@ export default async function ReviewPage() {
     });
   }
 
-  return (
-    <div className="mx-auto max-w-3xl">
-      <p className="eyebrow">Grading</p>
-      <h1 className="font-serif-display mt-2 text-3xl text-charcoal sm:text-4xl">
-        Grade review
-      </h1>
-      <p className="mt-3 max-w-2xl text-charcoal/70">
-        AI grades are proposals only. Approve to count a grade toward the
-        candidate&apos;s section pass/fail, final score, and certificate, or
-        reject to send it back for manual grading.
-      </p>
-      <p className="mt-1 text-sm text-charcoal/50">
-        {grades.length} awaiting approval
-      </p>
-      <div className="mt-8">
-        <ReviewList grades={grades} />
-      </div>
-    </div>
-  );
+  return grades;
 }

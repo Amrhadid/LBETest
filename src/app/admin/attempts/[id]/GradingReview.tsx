@@ -8,35 +8,29 @@ import {
   CircleCheck,
   CircleX,
   AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { decideGrade, gradeManually } from "@/app/admin/review/actions";
+import {
+  decideGrade,
+  gradeManually,
+  regrade,
+} from "@/app/admin/attempts/[id]/grading-actions";
+import type { PendingGrade } from "@/app/admin/attempts/[id]/grading-types";
 
-export interface PendingGrade {
-  responseId: string;
-  attemptId: string;
-  questionType: number;
-  questionTypeLabel: string;
-  lbeLevel: number | null;
-  prompt: string | null;
-  isVoice: boolean;
-  candidateText: string; // typed answer OR speech transcript
-  audioUrl: string | null;
-  aiScore: number | null;
-  maxScore: number;
-  aiIsCorrect: boolean | null;
-  aiConfidence: number | null;
-  feedback: string;
-  criteria: { id: string; met: boolean; note?: string }[];
-  failed: boolean;
-  errorMessage: string | null;
-}
+export type { PendingGrade };
 
 /** Manual scoring form shown when AI grading failed (or for an override). */
-function ManualGradeForm({ grade }: { grade: PendingGrade }) {
+function ManualGradeForm({
+  grade,
+  onDone,
+}: {
+  grade: PendingGrade;
+  onDone?: () => void;
+}) {
   const [pending, startTransition] = React.useTransition();
   const [score, setScore] = React.useState("");
   const [pass, setPass] = React.useState(true);
@@ -53,7 +47,10 @@ function ManualGradeForm({ grade }: { grade: PendingGrade }) {
         grade.attemptId,
       );
       if (res.error) setError(res.error);
-      else setDone(true);
+      else {
+        setDone(true);
+        onDone?.();
+      }
     });
 
   if (done) {
@@ -110,19 +107,79 @@ function ManualGradeForm({ grade }: { grade: PendingGrade }) {
   );
 }
 
-function ProposalRow({ grade }: { grade: PendingGrade }) {
+function ProposalRow({ grade: initialGrade }: { grade: PendingGrade }) {
+  // Local copy so a regrade can refresh the card in place (no page reload).
+  const [grade, setGrade] = React.useState(initialGrade);
   const [pending, startTransition] = React.useTransition();
   const [result, setResult] = React.useState<
     { decision: "approve" | "reject"; error?: string } | null
   >(null);
 
+  // Regrade state, plus a "resolved" latch that hides Regrade once this response
+  // has been human-approved or manually graded in-session (approved results must
+  // not silently change — that's the manual-override flow's job).
+  const [regrading, startRegrade] = React.useTransition();
+  const [regradeError, setRegradeError] = React.useState<string | null>(null);
+  const [resolved, setResolved] = React.useState(false);
+
   const decide = (decision: "approve" | "reject") =>
     startTransition(async () => {
       const res = await decideGrade(grade.responseId, decision, grade.attemptId);
       setResult({ decision, error: res.error });
+      if (decision === "approve" && !res.error) setResolved(true);
+    });
+
+  const onRegrade = () =>
+    startRegrade(async () => {
+      setRegradeError(null);
+      const res = await regrade(grade.responseId, grade.attemptId);
+      if (res.error || !res.outcome) {
+        setRegradeError(res.error ?? "Could not regrade.");
+        return;
+      }
+      const o = res.outcome;
+      setGrade((g) => ({
+        ...g,
+        failed: o.status === "failed",
+        errorMessage: o.errorMessage,
+        aiScore: o.aiScore,
+        aiIsCorrect: o.aiIsCorrect,
+        aiConfidence: o.aiConfidence,
+        feedback: o.feedback,
+        criteria: o.criteria,
+        candidateText: g.isVoice
+          ? (o.transcript ?? g.candidateText)
+          : g.candidateText,
+      }));
+      // The new proposal is un-decided — clear any prior approve/reject result.
+      setResult(null);
     });
 
   const decided = result && !result.error;
+
+  // Regrade re-runs AI grading for this one response. Hidden once resolved
+  // (approved / manually graded) so approved results never silently change.
+  const regradeButton = resolved ? null : (
+    <div className="flex flex-wrap items-center gap-2">
+      <Button
+        type="button"
+        size="md"
+        variant="outline"
+        onClick={onRegrade}
+        disabled={regrading}
+      >
+        {regrading ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <RefreshCw className="h-4 w-4" />
+        )}
+        Regrade
+      </Button>
+      {regradeError && (
+        <span className="text-sm text-rose-700">{regradeError}</span>
+      )}
+    </div>
+  );
 
   return (
     <Card className={decided ? "opacity-60" : undefined}>
@@ -179,8 +236,17 @@ function ProposalRow({ grade }: { grade: PendingGrade }) {
               <p className="mt-1 text-xs text-amber-700">{grade.errorMessage}</p>
             )}
             <div className="mt-3">
-              <ManualGradeForm grade={grade} />
+              <ManualGradeForm grade={grade} onDone={() => setResolved(true)} />
             </div>
+            {regradeButton && (
+              <div className="mt-3 border-t border-amber-200 pt-3">
+                <p className="mb-2 text-xs text-amber-700">
+                  Fixed the underlying issue? Re-run AI grading instead of
+                  grading by hand.
+                </p>
+                {regradeButton}
+              </div>
+            )}
           </div>
         ) : (
           <>
@@ -279,6 +345,7 @@ function ProposalRow({ grade }: { grade: PendingGrade }) {
               <X className="h-4 w-4" />
               Reject
             </Button>
+            {regradeButton}
             {result?.error && (
               <span className="text-sm text-rose-700">{result.error}</span>
             )}
@@ -291,12 +358,12 @@ function ProposalRow({ grade }: { grade: PendingGrade }) {
   );
 }
 
-export function ReviewList({ grades }: { grades: PendingGrade[] }) {
+/** In-context AI-grading review cards for one attempt's open-ended responses. */
+export function GradingReview({ grades }: { grades: PendingGrade[] }) {
   if (grades.length === 0) {
     return (
       <p className="text-charcoal/60">
-        Nothing awaiting approval. AI-graded responses will appear here as
-        candidates submit.
+        No AI-graded responses need attention on this attempt.
       </p>
     );
   }

@@ -29,6 +29,7 @@ import {
 } from "@/lib/exam/transcription.server";
 import {
   GRADING_MODEL,
+  LOW_CONFIDENCE_THRESHOLD,
   gradeTextResponse,
   answerText,
   responseFlags,
@@ -140,7 +141,7 @@ export async function gradeAttemptTextResponses(
   };
 
   // Record an AI-grading failure so it's VISIBLE to staff: mark the response
-  // grade_status='failed' (surfaces on /admin/review) and keep the error on
+  // grade_status='failed' (surfaces on the attempt detail page) and keep the error on
   // ai_feedback. The student's answer + audio are untouched, so a teacher can
   // grade it by hand. Also drop a grading_error flag into the review queue.
   const markFailed = async (
@@ -272,4 +273,173 @@ export async function gradeAttemptTextResponses(
   }
 
   return { graded, errors, flags };
+}
+
+/** Fresh proposal (or failure) produced by regrading a single response. */
+export interface RegradeOutcome {
+  status: "pending_approval" | "failed";
+  aiScore: number | null;
+  aiIsCorrect: boolean | null;
+  aiConfidence: number | null;
+  feedback: string;
+  criteria: { id: string; met: boolean; note?: string }[];
+  transcript: string | null;
+  errorMessage: string | null;
+}
+
+/**
+ * Re-run the AI grading pipeline for ONE response and re-stage it for approval.
+ *
+ * Used from the attempt detail page to retry a response whose AI grade failed (e.g. the
+ * transcription bug) or to refresh a still-pending proposal — without a full
+ * re-grade of the attempt or a manual SQL edit. Honours the approval gate: an
+ * already-approved response is never silently changed (that goes through the
+ * manual-override flow), so this refuses to touch grade_status='approved'.
+ *
+ * Mirrors one iteration of {@link gradeAttemptTextResponses}: transcribe voice
+ * answers, grade to a proposal (pending_approval), and keep the review_queue in
+ * step. On any error the response is marked 'failed' with the message preserved
+ * for manual grading, exactly like the batch path.
+ *
+ * SERVER ONLY (service-role writes). Callers MUST enforce staff authorization.
+ */
+export async function regradeResponse(
+  responseId: string,
+  call: GraderCall = anthropicGraderCall,
+  transcribe: TranscribeCall = googleTranscribeCall,
+): Promise<RegradeOutcome> {
+  const svc = createServiceRoleClient();
+
+  const { data: r } = await svc
+    .from("responses")
+    .select("id, attempt_id, item_id, answer, transcript, grade_status")
+    .eq("id", responseId)
+    .maybeSingle();
+  if (!r) throw new Error("Response not found.");
+  if (r.grade_status === "approved") {
+    throw new Error(
+      "This grade is already approved — use manual override to change it.",
+    );
+  }
+  if (!r.item_id) throw new Error("Response has no item to grade.");
+
+  const { data: itemRow } = await svc
+    .from("items")
+    .select(
+      "id, exam_id, source_type, question_type, lbe_level, prompt, media_url, options, answer_key, rubric, active",
+    )
+    .eq("id", r.item_id)
+    .maybeSingle();
+  if (!itemRow) throw new Error("Item not found.");
+  const item = toExamItem(itemRow as Record<string, unknown>);
+  if (!isAiGraded(item.question_type)) {
+    throw new Error("This response is not AI-graded.");
+  }
+
+  const attemptId = r.attempt_id as string;
+
+  const upsertFlag = (reason: string, detail: Record<string, unknown>) =>
+    svc.from("review_queue").upsert(
+      {
+        attempt_id: attemptId,
+        response_id: r.id,
+        item_id: item.id,
+        lbe_level: item.lbe_level,
+        reason,
+        detail: detail as unknown as never,
+      },
+      { onConflict: "response_id,reason" },
+    );
+  const clearFlag = (reason: string) =>
+    svc.from("review_queue").delete().eq("response_id", r.id).eq("reason", reason);
+
+  try {
+    // 1. Resolve the answer text — voice answers are re-transcribed first.
+    let candidateText: string;
+    let transcript: string | null = (r.transcript as string | null) ?? null;
+    if (isAiVoiceGraded(item.question_type)) {
+      const audioPath = audioPathOf(r.answer as ResponseAnswer);
+      if (!audioPath) throw new Error("no audio recorded for spoken response");
+      const tr = await transcribeResponseAudio(audioPath, transcribe);
+      candidateText = tr.text;
+      transcript = tr.text;
+      await svc.from("responses").update({ transcript }).eq("id", r.id);
+      if (tr.speakerCount > 1) {
+        await svc
+          .from("attempts")
+          .update({ multi_speaker: true })
+          .eq("id", attemptId);
+      }
+    } else {
+      candidateText = answerText(r.answer as ResponseAnswer);
+    }
+
+    // 2. Grade → fresh proposal (NOT authoritative; awaits approval).
+    const grade = await gradeTextResponse(item, candidateText, call);
+
+    await svc
+      .from("responses")
+      .update({
+        ai_score: grade.score,
+        ai_is_correct: grade.is_correct,
+        ai_confidence: grade.confidence,
+        ai_feedback: {
+          feedback: grade.feedback,
+          criteria: grade.criteria,
+          model: GRADING_MODEL,
+        } as unknown as never,
+        grade_status: "pending_approval",
+      })
+      .eq("id", r.id);
+
+    // 3. Re-stage the review queue: a fresh proposal awaiting approval, with any
+    //    stale failure cleared and the low-confidence flag kept in step. The
+    //    attempt-level near_threshold hint is left for the next full grade pass.
+    await clearFlag("grading_error");
+    await upsertFlag("pending_approval", {
+      ai_score: grade.score,
+      ai_is_correct: grade.is_correct,
+      confidence: grade.confidence,
+    });
+    for (const f of responseFlags(grade)) {
+      await upsertFlag(f.reason, f.detail);
+    }
+    if (grade.confidence >= LOW_CONFIDENCE_THRESHOLD) {
+      await clearFlag("low_confidence");
+    }
+
+    return {
+      status: "pending_approval",
+      aiScore: grade.score,
+      aiIsCorrect: grade.is_correct,
+      aiConfidence: grade.confidence,
+      feedback: grade.feedback,
+      criteria: grade.criteria,
+      transcript,
+      errorMessage: null,
+    };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "grading failed";
+    await svc
+      .from("responses")
+      .update({
+        grade_status: "failed",
+        ai_feedback: { error: message, model: GRADING_MODEL } as unknown as never,
+      })
+      .eq("id", r.id);
+    await clearFlag("pending_approval");
+    await clearFlag("low_confidence");
+    await upsertFlag("grading_error", { message });
+
+    return {
+      status: "failed",
+      aiScore: null,
+      aiIsCorrect: null,
+      aiConfidence: null,
+      feedback: "",
+      criteria: [],
+      transcript: (r.transcript as string | null) ?? null,
+      errorMessage: message,
+    };
+  }
 }
