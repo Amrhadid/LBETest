@@ -5,6 +5,10 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { finalizeAttempt } from "@/lib/certificates/finalize";
 import { writeAudit } from "@/lib/exam/audit.server";
+import {
+  regradeResponse,
+  type RegradeOutcome,
+} from "@/lib/exam/grade-attempt";
 
 export type ReviewActionState = { error?: string; message?: string };
 
@@ -123,4 +127,60 @@ export async function gradeManually(
   await tryFinalize(attemptId);
   revalidatePath("/admin/review");
   return { message: "Graded." };
+}
+
+/**
+ * Re-run AI grading for a single response and return the fresh proposal (or the
+ * new failure) so the review card can refresh in place — no page reload, no SQL.
+ *
+ * Staff-only, enforced here: unlike decideGrade/gradeManually (which delegate to
+ * SECURITY DEFINER RPCs), regrading writes via the service role and so bypasses
+ * RLS, so this action checks the caller's role itself. The pipeline refuses to
+ * touch an already-approved response, preserving the "AI grades, human approves"
+ * rule (approved results only change through the manual-override flow).
+ */
+export async function regrade(
+  responseId: string,
+  attemptId?: string,
+): Promise<ReviewActionState & { outcome?: RegradeOutcome }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in." };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
+  const role = profile?.role;
+  if (role !== "admin" && role !== "teacher") {
+    return { error: "You don't have permission to grade." };
+  }
+
+  let outcome: RegradeOutcome;
+  try {
+    outcome = await regradeResponse(responseId);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Could not regrade." };
+  }
+
+  await writeAudit(
+    { id: user.id, email: user.email },
+    {
+      action: "grade.regrade",
+      targetType: "response",
+      targetId: responseId,
+      detail: { status: outcome.status, attemptId },
+    },
+  );
+  revalidatePath("/admin/review");
+  return {
+    message:
+      outcome.status === "failed"
+        ? "Regrade failed — grade by hand."
+        : "Regraded — review the new proposal.",
+    outcome,
+  };
 }
