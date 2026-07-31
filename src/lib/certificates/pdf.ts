@@ -37,13 +37,13 @@ export interface CertificatePdfInput {
  * of the template (so they map 1:1 to the artwork). Tune here if the art moves.
  */
 const POS = {
-  name: { cx: 0.5, top: 0.352, size: 34 },
-  levelNum: { cx: 0.541, top: 0.532, size: 26 },
-  score: { rightX: 0.375, top: 0.716, size: 30 },
-  date: { cx: 0.196, top: 0.83, size: 9 },
-  certId: { cx: 0.388, top: 0.83, size: 8.5 },
-  validityUntil: { cx: 0.612, top: 0.85, size: 7.5 },
-  qr: { left: 0.66, top: 0.864, size: 0.083 }, // size = fraction of page width
+  name: { cx: 0.5, top: 0.35, size: 34 },
+  levelNum: { cx: 0.548, top: 0.507, size: 28 },
+  score: { rightX: 0.375, top: 0.72, size: 30 },
+  date: { cx: 0.196, top: 0.844, size: 9 },
+  certId: { cx: 0.388, top: 0.844, size: 8.5 },
+  validityUntil: { cx: 0.605, top: 0.852, size: 7.5 },
+  qr: { left: 0.662, top: 0.872, size: 0.083 }, // size = fraction of page width
 };
 
 function shortDate(d: Date) {
@@ -83,9 +83,52 @@ function drawQr(page: PDFPage, url: string, leftFrac: number, topFrac: number, s
   }
 }
 
+/**
+ * Calibration overlay: a labelled fractional grid + a baseline/center marker for
+ * every dynamic field, drawn on top of the artwork. Lets us read each field's
+ * true slot position against the template in one render instead of guessing.
+ * Only used by the debug tooling — never in production output.
+ */
+function drawCalibration(page: PDFPage, font: PDFFont) {
+  const steps = 40; // every 0.025
+  for (let i = 0; i <= steps; i++) {
+    const f = i / steps;
+    const major = i % 4 === 0; // every 0.10
+    const x = f * W;
+    const yTop = H * (1 - f);
+    const t = major ? 0.6 : 0.25;
+    // Grid lines drawn as thin filled rects (strokes don't rasterize reliably).
+    page.drawRectangle({ x, y: 0, width: t, height: H, color: rgb(0, 0, 0.85), opacity: major ? 0.5 : 0.22 });
+    page.drawRectangle({ x: 0, y: yTop, width: W, height: t, color: rgb(0.85, 0, 0), opacity: major ? 0.5 : 0.22 });
+    if (major) {
+      page.drawText(f.toFixed(2), { x: x + 0.5, y: H - 8, size: 5.5, font, color: rgb(0, 0, 0.85) });
+      page.drawText(f.toFixed(2), { x: 1, y: yTop - 1.5, size: 5.5, font, color: rgb(0.85, 0, 0) });
+    }
+  }
+  // Mark each field: a magenta baseline strip + its label.
+  const mark = (label: string, cx: number, top: number, halfW = 0.06) => {
+    const y = H * (1 - top);
+    page.drawRectangle({ x: (cx - halfW) * W, y, width: 2 * halfW * W, height: 0.8, color: rgb(1, 0, 1), opacity: 0.9 });
+    page.drawText(`${label} ${top.toFixed(3)}`, { x: (cx - halfW) * W, y: y + 2, size: 5, font, color: rgb(0.6, 0, 0.6) });
+  };
+  mark("name", POS.name.cx, POS.name.top);
+  mark("level", POS.levelNum.cx, POS.levelNum.top, 0.03);
+  mark("score", POS.score.rightX - 0.03, POS.score.top, 0.03);
+  mark("date", POS.date.cx, POS.date.top);
+  mark("certId", POS.certId.cx, POS.certId.top);
+  mark("until", POS.validityUntil.cx, POS.validityUntil.top);
+  // QR box outline (as 4 thin filled rects).
+  const qx = POS.qr.left * W, qs = POS.qr.size * W, qyTop = H * (1 - POS.qr.top), qy = qyTop - qs;
+  for (const r of [
+    { x: qx, y: qy, width: qs, height: 1 }, { x: qx, y: qyTop, width: qs, height: 1 },
+    { x: qx, y: qy, width: 1, height: qs }, { x: qx + qs, y: qy, width: 1, height: qs },
+  ]) page.drawRectangle({ ...r, color: rgb(0, 0.6, 0), opacity: 0.9 });
+}
+
 export async function generateCertificatePdf(
   input: CertificatePdfInput,
   templatePng: Uint8Array,
+  opts: { debug?: boolean; gridOnly?: boolean } = {},
 ): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
   pdf.setTitle(`LBE Certificate — ${input.certCode}`);
@@ -102,6 +145,10 @@ export async function generateCertificatePdf(
   page.drawImage(bg, { x: 0, y: 0, width: W, height: H });
 
   // --- Overlays (dynamic only) --------------------------------------------
+  if (opts.gridOnly) {
+    drawCalibration(page, sans);
+    return pdf.save();
+  }
   const name = input.candidateName.trim() || "Candidate";
   // Shrink the name to fit if it's long.
   let nameSize = POS.name.size;
@@ -127,6 +174,8 @@ export async function generateCertificatePdf(
   centerAt(page, sans, shortDate(input.expiresAt), POS.validityUntil.cx, POS.validityUntil.top, POS.validityUntil.size, INK);
 
   drawQr(page, input.verifyUrl, POS.qr.left, POS.qr.top, POS.qr.size);
+
+  if (opts.debug) drawCalibration(page, sans);
 
   return pdf.save();
 }
