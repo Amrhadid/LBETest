@@ -14,11 +14,14 @@ import { RESPONSE_AUDIO_BUCKET } from "@/lib/exam/storage";
  *
  * Recordings are WEBM_OPUS (MediaRecorder default), stored in the private
  * `responses-audio` bucket. We download with the service role, base64-encode,
- * and POST to speech:recognize. Transcript text is returned for grading and
- * for reviewers to read without replaying audio.
+ * and POST to speech:longrunningrecognize. Transcript text is returned for
+ * grading and for reviewers to read without replaying audio.
+ *
+ * We use the async `longRunningRecognize` endpoint rather than sync `recognize`
+ * because sync enforces a ~60s cap derived from the audio's declared duration,
+ * and MediaRecorder WEBM_OPUS carries no duration in its header — so sync
+ * rejects even short clips with `400 "Sync input too long"`.
  */
-
-const STT_URL = "https://speech.googleapis.com/v1/speech:recognize";
 
 /** Resolve the STT API key at runtime (Worker env first, then process.env). */
 export function getGoogleSttApiKey(): string | undefined {
@@ -120,11 +123,20 @@ function parseSttResponse(data: SttResponse): TranscriptionResult {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
- * Long-audio path: Google's sync `recognize` endpoint rejects audio longer than
- * ~60s. For those we submit an async `longRunningRecognize` operation (inline
- * base64 content — no GCS bucket needed) and poll until it completes. Bounded so
- * a stuck operation can't hang the caller; on timeout we throw and the response
- * is marked for manual grading, same as any other STT failure.
+ * Primary path: the async `longRunningRecognize` operation (inline base64
+ * content — no GCS bucket needed), polled until it completes.
+ *
+ * We use this instead of the sync `recognize` endpoint because sync enforces a
+ * hard ~60s limit that Google derives from the audio's declared duration.
+ * Browser `MediaRecorder` writes WEBM_OPUS whose container header carries NO
+ * duration (the header is finalized before the recording stops), so Google
+ * can't verify the length and rejects the sync request with
+ * `400 "Sync input too long"` — even for clips well under a minute. The async
+ * endpoint is not subject to that threshold, so it transcribes these
+ * header-less clips reliably regardless of their real length.
+ *
+ * Bounded so a stuck operation can't hang the caller; on timeout we throw and
+ * the response is marked for manual grading, same as any other STT failure.
  */
 async function longRunningTranscribe(
   key: string,
@@ -173,7 +185,17 @@ async function longRunningTranscribe(
   throw new Error("Google STT longrunning timed out before completing.");
 }
 
-/** The default {@link TranscribeCall}: Google Cloud Speech-to-Text (API key). */
+/**
+ * The default {@link TranscribeCall}: Google Cloud Speech-to-Text (API key).
+ *
+ * Always transcribes via `longRunningRecognize`. We deliberately avoid the sync
+ * `recognize` endpoint: its ~60s cap is derived from the audio's declared
+ * duration, and browser-recorded WEBM_OPUS carries no duration in its header,
+ * so sync rejects even short clips with `400 "Sync input too long"`. The async
+ * endpoint has no such threshold and handles these header-less recordings
+ * reliably. Our spoken answers are transcribed in a background grading job, so
+ * the extra latency from polling is not user-visible.
+ */
 export const googleTranscribeCall: TranscribeCall = async ({ audio, path }) => {
   const key = getGoogleSttApiKey();
   if (!key) {
@@ -181,26 +203,7 @@ export const googleTranscribeCall: TranscribeCall = async ({ audio, path }) => {
   }
 
   const { encoding } = encodingFor(path);
-  const res = await fetch(`${STT_URL}?key=${encodeURIComponent(key)}`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      config: recognitionConfig(encoding),
-      audio: { content: toBase64(audio) },
-    }),
-  });
-
-  if (!res.ok) {
-    const detail = await res.text().catch(() => "");
-    // Sync `recognize` caps audio at ~60s. When the clip is longer, Google
-    // returns 400 "Sync input too long" — retry via the async long-running API.
-    if (res.status === 400 && /too long|LongRunningRecognize/i.test(detail)) {
-      return longRunningTranscribe(key, encoding, audio);
-    }
-    throw new Error(`Google STT error ${res.status}: ${detail.slice(0, 300)}`);
-  }
-
-  return parseSttResponse((await res.json()) as SttResponse);
+  return longRunningTranscribe(key, encoding, audio);
 };
 
 /**
