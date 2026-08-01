@@ -333,3 +333,94 @@ export async function finalizeAttempt(
 
   return { finalized: true, level, score, certificateId: certId };
 }
+
+/**
+ * Regenerate the PDF for an EXISTING certificate and re-upload it, keeping the
+ * same cert_code / hash / issue date. Use this to apply changes made after the
+ * certificate was issued — most importantly an admin-approved certificate photo,
+ * which is only embedded at generation time. Runs with the service role.
+ */
+export async function regenerateCertificatePdf(
+  certificateId: string,
+): Promise<{ ok: boolean; reason?: string }> {
+  const svc = createServiceRoleClient();
+
+  const { data: cert } = await svc
+    .from("certificates")
+    .select("id, cert_code, attempt_id, user_id, lbe_level, score, issued_at, expires_at")
+    .eq("id", certificateId)
+    .maybeSingle();
+  if (!cert || !cert.cert_code) return { ok: false, reason: "not_found" };
+  const certCode = cert.cert_code;
+
+  const { data: attempt } = await svc
+    .from("attempts")
+    .select("exam_id")
+    .eq("id", cert.attempt_id ?? "")
+    .maybeSingle();
+
+  const { data: profile } = await svc
+    .from("profiles")
+    .select("full_name, candidate_code, certificate_photo_path, certificate_photo_status")
+    .eq("id", cert.user_id)
+    .maybeSingle();
+
+  // Score out of 100 = raw score / active items in the exam.
+  let totalItems = 0;
+  if (attempt?.exam_id) {
+    const { count } = await svc
+      .from("items")
+      .select("id", { count: "exact", head: true })
+      .eq("exam_id", attempt.exam_id)
+      .eq("active", true);
+    totalItems = count ?? 0;
+  }
+  const rawScore = Number(cert.score ?? 0);
+  const scoreOutOf100 = totalItems > 0 ? Math.round((rawScore / totalItems) * 100) : 0;
+
+  // Embed an admin-approved photo if there is one.
+  let candidatePhoto: Uint8Array | null = null;
+  if (
+    profile?.certificate_photo_path &&
+    profile.certificate_photo_status === "approved"
+  ) {
+    try {
+      const { data: blob } = await svc.storage
+        .from(CERTIFICATE_PHOTOS_BUCKET)
+        .download(profile.certificate_photo_path);
+      if (blob) candidatePhoto = new Uint8Array(await blob.arrayBuffer());
+    } catch {
+      /* leave the photo box blank */
+    }
+  }
+
+  const level = Number(cert.lbe_level ?? 1);
+  try {
+    const template = await loadCertificateTemplate();
+    const pdf = await generateCertificatePdf(
+      {
+        candidateName: profile?.full_name ?? "Candidate",
+        candidatePhoto,
+        level,
+        levelName: levelName(level),
+        levelDescription: levelDescription(level),
+        score: scoreOutOf100,
+        certCode,
+        candidateId: profile?.candidate_code ?? "",
+        issuedAt: new Date(cert.issued_at ?? Date.now()),
+        expiresAt: new Date(cert.expires_at ?? Date.now()),
+        verifyUrl: verifyUrlFor(certCode),
+      },
+      template,
+    );
+    const path = `${cert.user_id}/${certCode}.pdf`;
+    const { error: upErr } = await svc.storage
+      .from(CERTIFICATES_BUCKET)
+      .upload(path, pdf, { contentType: "application/pdf", upsert: true });
+    if (upErr) return { ok: false, reason: "upload_failed" };
+    await svc.from("certificates").update({ pdf_url: path }).eq("id", cert.id);
+    return { ok: true };
+  } catch {
+    return { ok: false, reason: "generation_failed" };
+  }
+}
