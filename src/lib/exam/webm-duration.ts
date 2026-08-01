@@ -127,47 +127,60 @@ function* children(buf: Uint8Array, start: number, end: number): Generator<Eleme
   }
 }
 
-/** Compute the WebM duration (in TimecodeScale ticks) from block timecodes. */
-function durationTicks(buf: Uint8Array, segment: Element): number | null {
+/**
+ * Compute the WebM duration (in TimecodeScale ticks) by a LINEAR walk of the
+ * Segment content. We descend into Cluster/BlockGroup containers and skip all
+ * other elements by their size, tracking the running Cluster Timecode and the
+ * furthest block end. Walking linearly (rather than trusting Cluster sizes)
+ * handles the unknown-size Clusters that MediaRecorder often emits — a Cluster
+ * simply ends when the next Cluster's header appears.
+ */
+function durationTicks(buf: Uint8Array, start: number, end: number): number | null {
   let maxEnd = -1;
-  for (const el of children(buf, segment.contentStart, segment.contentEnd)) {
-    if (el.id !== ID_CLUSTER) continue;
-    let clusterTc = 0;
-    for (const c of children(buf, el.contentStart, el.contentEnd)) {
-      if (c.id === ID_CLUSTER_TIMECODE) {
-        clusterTc = readUint(buf, c.contentStart, c.contentEnd - c.contentStart);
-        break;
-      }
+  let base = 0; // current Cluster Timecode
+  let pos = start;
+  let steps = 0;
+  while (pos < end) {
+    if (++steps > 5_000_000) return null; // runaway guard
+    const el = readElement(buf, pos, end);
+    if (el.id === ID_CLUSTER || el.id === ID_BLOCKGROUP) {
+      // Descend: step INTO the container (don't skip by size).
+      pos = el.contentStart;
+      continue;
     }
-    for (const c of children(buf, el.contentStart, el.contentEnd)) {
-      let blockStart: number | null = null;
-      if (c.id === ID_SIMPLEBLOCK) blockStart = c.contentStart;
-      else if (c.id === ID_BLOCKGROUP) {
-        for (const bg of children(buf, c.contentStart, c.contentEnd)) {
-          if (bg.id === ID_BLOCK) {
-            blockStart = bg.contentStart;
-            break;
-          }
-        }
-      }
-      if (blockStart == null) continue;
-      const track = readSize(buf, blockStart); // track number VINT
-      const relPos = blockStart + track.len;
+    if (el.id === ID_CLUSTER_TIMECODE) {
+      base = readUint(buf, el.contentStart, el.contentEnd - el.contentStart);
+    } else if (el.id === ID_SIMPLEBLOCK || el.id === ID_BLOCK) {
+      const track = readSize(buf, el.contentStart); // track number VINT
+      const relPos = el.contentStart + track.len;
       const rel = (buf[relPos] << 8) | buf[relPos + 1];
       const relSigned = rel >= 0x8000 ? rel - 0x10000 : rel;
-      const end = clusterTc + relSigned;
-      if (end > maxEnd) maxEnd = end;
+      const blockEnd = base + relSigned;
+      if (blockEnd > maxEnd) maxEnd = blockEnd;
     }
+    // Skip this element by its size. An unknown-size non-container we can't
+    // step past safely — bail so we don't loop.
+    if (el.unknownSize) return maxEnd < 0 ? null : maxEnd + 20;
+    if (el.contentEnd <= pos) return null;
+    pos = el.contentEnd;
   }
   if (maxEnd < 0) return null;
   // Add ~20ms (in ticks) for the final frame's own length.
   return maxEnd + 20;
 }
 
-/** Big-endian IEEE-754 double as 8 bytes. */
-function f64be(value: number): number[] {
-  const b = new Uint8Array(8);
-  new DataView(b.buffer).setFloat64(0, value, false);
+/** Read a float (4 or 8 bytes, big-endian) at [start, start+len). */
+function readFloat(buf: Uint8Array, start: number, len: number): number {
+  const dv = new DataView(buf.buffer, buf.byteOffset + start, len);
+  return len === 4 ? dv.getFloat32(0, false) : dv.getFloat64(0, false);
+}
+
+/** Encode a float of `len` bytes (4 or 8), big-endian. */
+function floatBytes(value: number, len: number): number[] {
+  const b = new Uint8Array(len);
+  const dv = new DataView(b.buffer);
+  if (len === 4) dv.setFloat32(0, value, false);
+  else dv.setFloat64(0, value, false);
   return Array.from(b);
 }
 
@@ -188,15 +201,15 @@ export function ensureWebmDuration(input: Uint8Array): Uint8Array {
     }
     if (!segment) return input;
 
-    // Find Info, its TimecodeScale, and whether a Duration already exists.
+    // Find Info, its TimecodeScale, and any existing Duration element.
     let info: Element | null = null;
-    let hasDuration = false;
+    let durationEl: Element | null = null;
     let timecodeScale = 1_000_000; // default: 1ms per tick
     for (const el of children(input, segment.contentStart, segment.contentEnd)) {
       if (el.id !== ID_INFO) continue;
       info = el;
       for (const c of children(input, el.contentStart, el.contentEnd)) {
-        if (c.id === ID_DURATION) hasDuration = true;
+        if (c.id === ID_DURATION) durationEl = c;
         else if (c.id === ID_TIMECODE_SCALE) {
           timecodeScale = readUint(
             input,
@@ -207,15 +220,38 @@ export function ensureWebmDuration(input: Uint8Array): Uint8Array {
       }
       break;
     }
-    if (!info || hasDuration || timecodeScale <= 0) return input;
+    if (!info || timecodeScale <= 0) return input;
 
-    const ticks = durationTicks(input, segment);
-    if (ticks == null || ticks <= 0) return input;
+    // A valid, positive Duration already present → leave the file untouched.
+    if (durationEl) {
+      const len = durationEl.contentEnd - durationEl.contentStart;
+      if (len === 4 || len === 8) {
+        const cur = readFloat(input, durationEl.contentStart, len);
+        if (Number.isFinite(cur) && cur > 0) return input;
+      }
+    }
 
+    const ticks = durationTicks(input, segment.contentStart, segment.contentEnd);
+    // Sanity-bound: > 0 and ≤ 6h, so a mis-parse can't inject a wild value.
+    const maxTicks = (6 * 3600 * 1000 * 1_000_000) / timecodeScale;
+    if (ticks == null || ticks <= 0 || ticks > maxTicks) return input;
+
+    // Case A: a Duration element exists but is zero/invalid — overwrite it in
+    // place (same byte length), so no size fields need to change.
+    if (durationEl) {
+      const len = durationEl.contentEnd - durationEl.contentStart;
+      if (len !== 4 && len !== 8) return input;
+      const out = input.slice();
+      const bytes = floatBytes(ticks, len);
+      for (let i = 0; i < len; i++) out[durationEl.contentStart + i] = bytes[i];
+      return out;
+    }
+
+    // Case B: no Duration element — insert one as Info's first child.
     // Duration element: id 0x4489 + size 0x88 (8) + 8-byte double, value in ticks.
-    const durationEl = [0x44, 0x89, 0x88, ...f64be(ticks)];
+    const newEl = [0x44, 0x89, 0x88, ...floatBytes(ticks, 8)];
     const insertAt = info.contentStart;
-    const added = durationEl.length; // 11
+    const added = newEl.length; // 11
 
     // Grow Info's size (same-width VINT) to cover the new child.
     if (info.unknownSize) return input; // Info with unknown size: bail (rare).
@@ -236,7 +272,7 @@ export function ensureWebmDuration(input: Uint8Array): Uint8Array {
     out.set(input, 0);
     // Shift everything from insertAt right by `added`, then write the element.
     out.copyWithin(insertAt + added, insertAt, input.length);
-    for (let i = 0; i < durationEl.length; i++) out[insertAt + i] = durationEl[i];
+    for (let i = 0; i < newEl.length; i++) out[insertAt + i] = newEl[i];
     // Overwrite size fields in place (positions are before insertAt).
     for (let i = 0; i < newInfoSizeBytes.length; i++) {
       out[info.sizeStart + i] = newInfoSizeBytes[i];
