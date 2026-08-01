@@ -1,7 +1,7 @@
 /**
  * Official LBE Test certificate renderer — Cloudflare Workers / edge-safe.
  *
- * The design is the uploaded artwork (`public/LBETemplate.png`, a blank
+ * The design is the uploaded artwork (`public/LBETemplate.jpg`, a blank
  * A4-portrait template). We embed it as a full-page background and overlay ONLY
  * the dynamic fields at coordinates measured by scanning the template pixels
  * (see the detection tooling). Everything else — logo, seal, signature, borders,
@@ -141,7 +141,13 @@ export async function generateCertificatePdf(
   const sans = await pdf.embedFont(StandardFonts.Helvetica);
   const sansBold = await pdf.embedFont(StandardFonts.HelveticaBold);
 
-  page.drawImage(await pdf.embedPng(templatePng), { x: 0, y: 0, width: W, height: H });
+  // Embed by detected format: JPEG (FF D8) is embedded as-is (cheap); PNG is
+  // decoded/re-encoded (kept for backward compatibility with a PNG template).
+  const isJpeg = templatePng[0] === 0xff && templatePng[1] === 0xd8;
+  const templateImg = isJpeg
+    ? await pdf.embedJpg(templatePng)
+    : await pdf.embedPng(templatePng);
+  page.drawImage(templateImg, { x: 0, y: 0, width: W, height: H });
 
   if (opts.gridOnly) {
     drawCalibration(page, sans);
