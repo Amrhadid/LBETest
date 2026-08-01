@@ -11,7 +11,8 @@ import { createClient, createServiceRoleClient } from "@/lib/supabase/server";
 import { profileNeedsOnboarding, VISIT_PURPOSE_LABELS } from "@/lib/auth/onboarding";
 import { signOut } from "@/app/login/actions";
 import { levelName } from "@/lib/certificates/eligibility";
-import { CERTIFICATES_BUCKET } from "@/lib/certificates/finalize";
+import { CERTIFICATES_BUCKET, CERTIFICATE_PHOTOS_BUCKET } from "@/lib/certificates/finalize";
+import { CertificatePhotoCard } from "@/app/dashboard/CertificatePhotoCard";
 import { RedeemCard } from "@/app/dashboard/RedeemCard";
 
 export const metadata: Metadata = {
@@ -46,6 +47,8 @@ export default async function DashboardPage() {
     target_job: string | null;
     visit_purpose: string | null;
     country_of_origin: string | null;
+    certificate_photo_path: string | null;
+    certificate_photo_status: string | null;
   } | null = null;
   const supabase = await createClient();
   try {
@@ -55,7 +58,7 @@ export default async function DashboardPage() {
       const { data } = await supabase
         .from("profiles")
         .select(
-          "full_name, role, onboarded_at, date_of_birth, current_job, target_job, visit_purpose, country_of_origin",
+          "full_name, role, onboarded_at, date_of_birth, current_job, target_job, visit_purpose, country_of_origin, certificate_photo_path, certificate_photo_status",
         )
         .eq("id", user.id)
         .maybeSingle();
@@ -102,6 +105,20 @@ export default async function DashboardPage() {
         if (data?.signedUrl) pdfUrls.set(c.id, data.signedUrl);
       }),
   );
+
+  // Signed URL for the candidate's own certificate photo (private bucket).
+  let certPhotoUrl: string | null = null;
+  if (profile?.certificate_photo_path) {
+    const { data } = await svc.storage
+      .from(CERTIFICATE_PHOTOS_BUCKET)
+      .createSignedUrl(profile.certificate_photo_path, 60 * 30);
+    certPhotoUrl = data?.signedUrl ?? null;
+  }
+  const certPhotoStatus = (profile?.certificate_photo_status ?? "none") as
+    | "none"
+    | "pending"
+    | "approved"
+    | "rejected";
 
   const inProgress = (attempts ?? []).find((a) => a.status === "in_progress");
 
@@ -172,6 +189,11 @@ export default async function DashboardPage() {
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Certificate photo */}
+          <div className="mt-6">
+            <CertificatePhotoCard status={certPhotoStatus} photoUrl={certPhotoUrl} />
           </div>
 
           {/* Take / resume / redeem */}

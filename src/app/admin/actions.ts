@@ -374,6 +374,31 @@ export async function backfillCertificates(): Promise<
   return { message: `Issued ${issued} certificate${issued === 1 ? "" : "s"}.`, issued };
 }
 
+/** Approve or reject a candidate's uploaded certificate photo. Admin-only. */
+export async function setCertificatePhotoStatus(
+  userId: string,
+  status: "approved" | "rejected",
+): Promise<AdminActionState> {
+  const me = await requireAdmin();
+  if (status !== "approved" && status !== "rejected") {
+    return { error: "Invalid decision." };
+  }
+  const svc = createServiceRoleClient();
+  const { error } = await svc
+    .from("profiles")
+    .update({ certificate_photo_status: status })
+    .eq("id", userId);
+  if (error) return { error: "Could not update the photo status." };
+  await writeAudit(me, {
+    action: status === "approved" ? "cert_photo.approve" : "cert_photo.reject",
+    targetType: "profile",
+    targetId: userId,
+    detail: { status },
+  });
+  revalidatePath("/admin/certificate-photos");
+  return { message: status === "approved" ? "Approved." : "Rejected." };
+}
+
 // ---------------------------------------------------------------------------
 // Exam credibility / trust
 // ---------------------------------------------------------------------------
