@@ -88,7 +88,15 @@ export async function finalizeAttempt(
     return { finalized: false, reason: "already_finalized" };
   }
   if (attempt.status === "scored") {
-    return { finalized: false, reason: "already_finalized" };
+    // Already scored. Normally a no-op — but if the attempt has no certificate
+    // yet (e.g. attempts scored before every completed attempt earned LBE 1),
+    // fall through to (re)issue one under the current awarding rule.
+    const { data: cert } = await svc
+      .from("certificates")
+      .select("id")
+      .eq("attempt_id", attemptId)
+      .maybeSingle();
+    if (cert) return { finalized: false, reason: "already_finalized" };
   }
 
   // Not resolved until no AI grade is still pending or failed.
@@ -137,7 +145,12 @@ export async function finalizeAttempt(
       correct: correctByLevel.get(level) ?? 0,
     }));
 
-  const level = certifiedLevel(tallies);
+  const earnedLevel = certifiedLevel(tallies);
+  // Awarding rule: every completed attempt certifies at least LBE 1, so every
+  // attempt receives a certificate. The certificate's score out of 100 reflects
+  // actual performance (it can be low, or 0). Levels ABOVE 1 still require
+  // passing sections contiguously from Section 1 (see certifiedLevel).
+  const level = Math.max(1, earnedLevel);
   const score = totalCorrect(tallies);
   const totalItems = tallies.reduce((s, t) => s + t.total, 0);
   const scoreOutOf100 = totalItems > 0 ? Math.round((score / totalItems) * 100) : 0;
@@ -147,7 +160,7 @@ export async function finalizeAttempt(
     .from("attempts")
     .update({
       final_score: score,
-      lbe_level: level >= 1 ? level : null,
+      lbe_level: level,
       status: "scored",
     })
     .eq("id", attemptId);
@@ -162,10 +175,8 @@ export async function finalizeAttempt(
     // Trust scoring is advisory; a failure must not fail finalization.
   }
 
-  // No certified level → no credential, only the result record above.
-  if (level < 1) {
-    return { finalized: true, level: 0, score, certificateId: null };
-  }
+  // Every completed attempt is certified at LBE 1 or higher, so we always issue
+  // a certificate (the score out of 100 conveys actual performance).
 
   // Already has a certificate? (unique index guards; this keeps it idempotent.)
   const { data: existing } = await svc
