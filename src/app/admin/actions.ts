@@ -374,11 +374,14 @@ export async function backfillCertificates(): Promise<
     return { message: "Every scored attempt already has a certificate.", issued: 0 };
   }
 
+  // Create the certificate ROWS only (skipPdf) — cheap and reliable, so the
+  // whole batch fits in one request. Each PDF is generated afterwards via the
+  // per-row "Regenerate PDF" button (one generation per request).
   const { finalizeAttempt } = await import("@/lib/certificates/finalize");
   let issued = 0;
   for (const a of missing) {
     try {
-      const res = await finalizeAttempt(a.id);
+      const res = await finalizeAttempt(a.id, { skipPdf: true });
       if (res.certificateId) issued += 1;
     } catch {
       // Skip attempts that can't be finalized (e.g. unresolved grades); the
@@ -392,7 +395,13 @@ export async function backfillCertificates(): Promise<
     detail: { candidates: missing.length, issued },
   });
   revalidatePath("/admin/certificates");
-  return { message: `Issued ${issued} certificate${issued === 1 ? "" : "s"}.`, issued };
+  return {
+    message:
+      issued > 0
+        ? `Issued ${issued} certificate${issued === 1 ? "" : "s"}. Use "Regenerate PDF" on each to build the downloadable PDF.`
+        : "No new certificates were issued.",
+    issued,
+  };
 }
 
 /** Approve or reject a candidate's uploaded certificate photo. Admin-only. */
