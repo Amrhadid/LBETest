@@ -25,9 +25,7 @@ export const routes = {
   individuals: "/start", // individuals -> booking flow
   organizations: "/for-institutions", // existing organization/institution route
   businesses: "/for-business", // existing business/team route
-  // TODO(route): no dedicated LBE Training route exists yet. Point at the
-  // pricing section (Test + Training) as a temporary, non-broken anchor.
-  training: "#pricing",
+  training: "/training", // LBE Training: Course + Material tabs (entitlement-gated)
 } as const;
 
 export type NavItem = { label: string; href: string };
