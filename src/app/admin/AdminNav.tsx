@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, FileText, ListChecks, Library,
-  GraduationCap, Users, ScrollText, Award, KeyRound, History, FlaskConical,
+  GraduationCap, Users, ScrollText, Award, KeyRound, History, FlaskConical, MonitorPlay,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -16,6 +16,7 @@ const ITEMS: Item[] = [
   { label: "Exams", href: "/admin/exams", icon: FileText, adminOnly: true },
   { label: "Sections", href: "/admin/sections", icon: ListChecks, adminOnly: true },
   { label: "Exam Library", href: "/admin/library", icon: Library, adminOnly: true },
+  { label: "LBE Training", href: "/admin/training", icon: MonitorPlay, adminOnly: true },
   { label: "Students", href: "/admin/students", icon: GraduationCap, adminOnly: true },
   { label: "Users", href: "/admin/users", icon: Users, adminOnly: true },
   // Grading now happens in context on each attempt's detail page; teachers get

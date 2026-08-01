@@ -445,6 +445,78 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["review_queue"]["Insert"]>;
         Relationships: [];
       };
+      course_lessons: {
+        Row: {
+          id: string;
+          title: string;
+          description: string | null;
+          video_url: string | null;
+          duration_minutes: number | null;
+          position: number;
+          published: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          description?: string | null;
+          video_url?: string | null;
+          duration_minutes?: number | null;
+          position?: number;
+          published?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["course_lessons"]["Insert"]>;
+        Relationships: [];
+      };
+      intro_submissions: {
+        Row: {
+          user_id: string;
+          name: string | null;
+          date_of_birth: string | null;
+          city: string | null;
+          education: string | null;
+          current_status: string | null;
+          previous_job: string | null;
+          field: string | null;
+          experience_areas: string[];
+          soft_skills: string[];
+          qualifications: string[];
+          career_goal: string | null;
+          key_achievement: string | null;
+          languages: string | null;
+          weaknesses: string[];
+          tone: string;
+          generated_text: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          name?: string | null;
+          date_of_birth?: string | null;
+          city?: string | null;
+          education?: string | null;
+          current_status?: string | null;
+          previous_job?: string | null;
+          field?: string | null;
+          experience_areas?: string[];
+          soft_skills?: string[];
+          qualifications?: string[];
+          career_goal?: string | null;
+          key_achievement?: string | null;
+          languages?: string | null;
+          weaknesses?: string[];
+          tone?: string;
+          generated_text?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["intro_submissions"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
