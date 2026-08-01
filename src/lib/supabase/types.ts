@@ -36,6 +36,8 @@ export interface Database {
           candidate_code: string | null;
           certificate_photo_path: string | null;
           certificate_photo_status: string | null;
+          name_status: string | null;
+          name_reviewed_at: string | null;
           date_of_birth: string | null;
           current_job: string | null;
           target_job: string | null;
@@ -52,6 +54,8 @@ export interface Database {
           candidate_code?: string | null;
           certificate_photo_path?: string | null;
           certificate_photo_status?: string | null;
+          name_status?: string | null;
+          name_reviewed_at?: string | null;
           date_of_birth?: string | null;
           current_job?: string | null;
           target_job?: string | null;
