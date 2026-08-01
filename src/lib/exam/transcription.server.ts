@@ -2,6 +2,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { RESPONSE_AUDIO_BUCKET } from "@/lib/exam/storage";
+import { ensureWebmDuration } from "@/lib/exam/webm-duration";
 
 /**
  * Speech-to-text for spoken responses (types 3 & 6), SERVER ONLY.
@@ -23,12 +24,15 @@ import { RESPONSE_AUDIO_BUCKET } from "@/lib/exam/storage";
  * sync `recognize` returns `400 "Sync input too long"` and even
  * `longRunningRecognize` with inline content returns
  * `400 "Inline audio exceeds duration limit. Please use a GCS URI."` — because
- * Google can't verify the clip length. We therefore patch the real duration
- * into the WebM on the CLIENT before upload (see AudioRecordQuestion), after
- * which the clip is well-formed and short spoken answers transcribe fine via
- * the sync endpoint (≤60s). We avoid longRunningRecognize entirely: its inline
- * path has the same duration cap, and its GCS-URI path would need a Google
- * Cloud Storage bucket we don't run.
+ * Google can't verify the clip length. We fix this in two places: the CLIENT
+ * patches the real duration into the WebM before upload (see
+ * AudioRecordQuestion), and — for audio that was already uploaded without one,
+ * which a candidate can't re-record — the SERVER repairs the duration from the
+ * block timecodes just before sending to Google (see ensureWebmDuration). Once
+ * the clip has a duration, short spoken answers transcribe fine via the sync
+ * endpoint (≤60s). We avoid longRunningRecognize entirely: its inline path has
+ * the same duration cap, and its GCS-URI path would need a Google Cloud Storage
+ * bucket we don't run.
  */
 
 /** Resolve the STT API key at runtime (Worker env first, then process.env). */
@@ -130,11 +134,11 @@ function parseSttResponse(data: SttResponse): TranscriptionResult {
  * The default {@link TranscribeCall}: Google Cloud Speech-to-Text (API key).
  *
  * Sync `recognize` with inline base64 content. This works because spoken
- * answers are short (≤60s) AND the client patches the real duration into the
- * WebM before upload, so Google can verify the length. If the audio ever
- * arrives without a duration (e.g. an old client that didn't patch), Google
- * rejects it and we throw — the response is then marked for manual grading,
- * same as any other STT failure.
+ * answers are short (≤60s) and the WebM carries a duration — patched on the
+ * client before upload, or repaired here (ensureWebmDuration) for clips that
+ * were stored without one. If a clip still can't be transcribed, Google rejects
+ * it and we throw — the response is then marked for manual grading, same as any
+ * other STT failure.
  */
 export const googleTranscribeCall: TranscribeCall = async ({ audio, path }) => {
   const key = getGoogleSttApiKey();
@@ -142,13 +146,17 @@ export const googleTranscribeCall: TranscribeCall = async ({ audio, path }) => {
     throw new Error("GOOGLE_STT_API_KEY is not configured for the Worker.");
   }
 
-  const { encoding } = encodingFor(path);
+  const { encoding, label } = encodingFor(path);
+  // Repair a missing WebM duration so Google can determine the clip length.
+  // No-op when the duration is already present (client-patched clips) or when
+  // the bytes can't be parsed — see ensureWebmDuration.
+  const bytes = label === "webm" ? ensureWebmDuration(audio) : audio;
   const res = await fetch(`${STT_URL}?key=${encodeURIComponent(key)}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       config: recognitionConfig(encoding),
-      audio: { content: toBase64(audio) },
+      audio: { content: toBase64(bytes) },
     }),
   });
 
