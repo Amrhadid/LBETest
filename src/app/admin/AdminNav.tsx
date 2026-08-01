@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, FileText, ListChecks, Library,
-  GraduationCap, Users, ScrollText, Award, KeyRound, History, FlaskConical, MonitorPlay,
+  GraduationCap, Users, ScrollText, Award, KeyRound, History, FlaskConical, MonitorPlay, ImageIcon,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -24,6 +24,7 @@ const ITEMS: Item[] = [
   { label: "Attempts / Results", href: "/admin/attempts", icon: ScrollText, adminOnly: false },
   { label: "AI Grading Test", href: "/admin/ai-grading-test", icon: FlaskConical, adminOnly: true },
   { label: "Certificates", href: "/admin/certificates", icon: Award, adminOnly: true },
+  { label: "Certificate Photos", href: "/admin/certificate-photos", icon: ImageIcon, adminOnly: true },
   { label: "Access Codes", href: "/admin/access-codes", icon: KeyRound, adminOnly: true },
   { label: "Audit Log", href: "/admin/audit-log", icon: History, adminOnly: true },
 ];
