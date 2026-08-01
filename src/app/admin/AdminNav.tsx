@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, FileText, ListChecks, Library,
-  GraduationCap, Users, ScrollText, Award, KeyRound, History,
+  GraduationCap, Users, ScrollText, Award, KeyRound, History, FlaskConical,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -21,6 +21,7 @@ const ITEMS: Item[] = [
   // Grading now happens in context on each attempt's detail page; teachers get
   // the Attempts list (with the "needs grading" view) as their home.
   { label: "Attempts / Results", href: "/admin/attempts", icon: ScrollText, adminOnly: false },
+  { label: "AI Grading Test", href: "/admin/ai-grading-test", icon: FlaskConical, adminOnly: true },
   { label: "Certificates", href: "/admin/certificates", icon: Award, adminOnly: true },
   { label: "Access Codes", href: "/admin/access-codes", icon: KeyRound, adminOnly: true },
   { label: "Audit Log", href: "/admin/audit-log", icon: History, adminOnly: true },
