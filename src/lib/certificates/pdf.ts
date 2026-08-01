@@ -48,7 +48,7 @@ export interface CertificatePdfInput {
  * underline. Boxes are [left, top, right, bottom].
  */
 const POS = {
-  name: { cx: 0.453, line: 0.3587, size: 30, maxW: 0.55 },
+  name: { cx: 0.487, line: 0.3587, size: 30, maxW: 0.50 },
   photo: { l: 0.774, t: 0.263, r: 0.909, b: 0.401 },
   score: { rightX: 0.333, line: 0.577, size: 46 },
   levelNum: { leftX: 0.792, baseline: 0.558, size: 58 },
