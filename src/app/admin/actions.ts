@@ -321,6 +321,27 @@ export async function setCertificateStatus(
 }
 
 /**
+ * Regenerate an existing certificate's PDF (e.g. to embed a newly approved
+ * certificate photo). Keeps the same code/hash/dates. Admin-only.
+ */
+export async function regenerateCertificate(
+  certificateId: string,
+): Promise<AdminActionState> {
+  const me = await requireAdmin();
+  const { regenerateCertificatePdf } = await import("@/lib/certificates/finalize");
+  const res = await regenerateCertificatePdf(certificateId);
+  if (!res.ok) return { error: "Could not regenerate the certificate PDF." };
+  await writeAudit(me, {
+    action: "certificate.regenerate_pdf",
+    targetType: "certificate",
+    targetId: certificateId,
+    detail: {},
+  });
+  revalidatePath("/admin/certificates");
+  return { message: "Certificate PDF regenerated." };
+}
+
+/**
  * Issue certificates for every scored attempt that doesn't have one yet.
  *
  * Under the current rule every completed attempt certifies at LBE 1 or higher,
