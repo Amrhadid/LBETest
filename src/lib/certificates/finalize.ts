@@ -166,18 +166,11 @@ export async function finalizeAttempt(
     })
     .eq("id", attemptId);
 
-  // Exam-credibility trust score (#1): compute + store the composite suspicion
-  // score from all signals now that the attempt is resolved. Admin-only; never
-  // shown to the candidate. Best-effort — never blocks finalization/certifying.
-  try {
-    const { computeAndStoreTrust } = await import("@/lib/exam/trust.server");
-    await computeAndStoreTrust(attemptId);
-  } catch {
-    // Trust scoring is advisory; a failure must not fail finalization.
-  }
-
   // Every completed attempt is certified at LBE 1 or higher, so we always issue
-  // a certificate (the score out of 100 conveys actual performance).
+  // a certificate (the score out of 100 conveys actual performance). The
+  // certificate ROW is created BEFORE the heavier best-effort work below (trust
+  // scoring, PDF) so a Worker resource limit during those can never leave a
+  // scored attempt without a certificate.
 
   // Already has a certificate? (unique index guards; this keeps it idempotent.)
   const { data: existing } = await svc
@@ -295,6 +288,16 @@ export async function finalizeAttempt(
   if (!certId) {
     // Couldn't reserve a code; the result record still stands.
     return { finalized: true, level, score, certificateId: null };
+  }
+
+  // Exam-credibility trust score (#1): composite suspicion score, admin-only.
+  // Best-effort and intentionally AFTER the certificate row so it can never
+  // block certification.
+  try {
+    const { computeAndStoreTrust } = await import("@/lib/exam/trust.server");
+    await computeAndStoreTrust(attemptId);
+  } catch {
+    // Trust scoring is advisory; a failure must not fail finalization.
   }
 
   // Generating the PDF (embedding the ~1.5 MB template) is the heavy step. The
