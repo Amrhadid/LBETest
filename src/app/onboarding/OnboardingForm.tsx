@@ -42,16 +42,33 @@ export function OnboardingForm({
       {/* Name */}
       <div>
         <label htmlFor="full_name" className={labelCls}>
-          Full name
+          Full legal name
         </label>
         <Input
           id="full_name"
           name="full_name"
           defaultValue={defaultName}
-          placeholder="Your name"
+          placeholder="Your name as on your ID"
           autoComplete="name"
           required
         />
+        <p className="mt-1.5 text-xs text-muted-foreground">
+          Enter your full name exactly as it appears on your national ID or
+          passport. This is the name printed on your certificate.
+        </p>
+        <label className="mt-3 flex cursor-pointer items-start gap-2.5 rounded-lg border border-gold/20 px-3 py-2.5 text-sm text-charcoal hover:bg-gold/5 has-[:checked]:border-gold has-[:checked]:bg-gold/10">
+          <input
+            type="checkbox"
+            name="name_confirmed"
+            value="yes"
+            className="mt-0.5 size-4 accent-gold"
+            required
+          />
+          <span>
+            I confirm this is my real full name, identical to my national ID or
+            passport.
+          </span>
+        </label>
       </div>
 
       {/* Date of birth */}

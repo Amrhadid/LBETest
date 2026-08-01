@@ -39,8 +39,12 @@ export async function submitOnboarding(
   const targetJob = String(formData.get("target_job") ?? "").trim();
   const purpose = String(formData.get("visit_purpose") ?? "").trim();
   const country = String(formData.get("country_of_origin") ?? "").trim();
+  const nameConfirmed = formData.get("name_confirmed") === "yes";
 
   if (!fullName) return { error: "Please enter your name." };
+  if (!nameConfirmed) {
+    return { error: "Please confirm your name matches your national ID or passport." };
+  }
   if (!dob) return { error: "Please enter your date of birth." };
   const dobDate = new Date(dob);
   if (Number.isNaN(dobDate.getTime()) || dobDate > new Date()) {

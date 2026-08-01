@@ -429,6 +429,48 @@ export async function setCertificatePhotoStatus(
   return { message: status === "approved" ? "Approved." : "Rejected." };
 }
 
+/**
+ * Approve a candidate's legal name, optionally correcting it to match their
+ * document, or reject it (sending it back to the candidate). Admin-only.
+ *
+ * The corrected name is written to `profiles.full_name` — the exact value the
+ * certificate prints — so after approving a corrected name, regenerate the
+ * certificate PDF to apply it.
+ */
+export async function reviewCandidateName(
+  userId: string,
+  status: "approved" | "rejected",
+  correctedName?: string,
+): Promise<AdminActionState> {
+  const me = await requireAdmin();
+  if (status !== "approved" && status !== "rejected") {
+    return { error: "Invalid decision." };
+  }
+  const svc = createServiceRoleClient();
+  const patch: {
+    name_status: "approved" | "rejected";
+    name_reviewed_at: string;
+    full_name?: string;
+  } = { name_status: status, name_reviewed_at: new Date().toISOString() };
+
+  if (status === "approved") {
+    const name = (correctedName ?? "").trim();
+    if (!name) return { error: "The name can't be empty." };
+    patch.full_name = name;
+  }
+
+  const { error } = await svc.from("profiles").update(patch).eq("id", userId);
+  if (error) return { error: "Could not update the name." };
+  await writeAudit(me, {
+    action: status === "approved" ? "candidate_name.approve" : "candidate_name.reject",
+    targetType: "profile",
+    targetId: userId,
+    detail: { status, ...(patch.full_name ? { full_name: patch.full_name } : {}) },
+  });
+  revalidatePath("/admin/candidate-names");
+  return { message: status === "approved" ? "Approved." : "Rejected." };
+}
+
 // ---------------------------------------------------------------------------
 // Exam credibility / trust
 // ---------------------------------------------------------------------------
