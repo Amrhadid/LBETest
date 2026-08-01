@@ -49,9 +49,9 @@ export interface CertificatePdfInput {
  */
 const POS = {
   name: { cx: 0.453, line: 0.3587, size: 30, maxW: 0.55 },
-  photo: { l: 0.774, t: 0.28, r: 0.909, b: 0.401 },
-  score: { rightX: 0.333, line: 0.5802, size: 46 },
-  levelNum: { leftX: 0.792, baseline: 0.556, size: 58 },
+  photo: { l: 0.774, t: 0.263, r: 0.909, b: 0.401 },
+  score: { rightX: 0.333, line: 0.577, size: 46 },
+  levelNum: { leftX: 0.792, baseline: 0.558, size: 58 },
   levelName: { cx: 0.723, line: 0.5802, size: 15, maxW: 0.30 },
   desc1: { cx: 0.5015, line: 0.6277, size: 11.5 },
   desc2: { cx: 0.5015, line: 0.6502, size: 11.5 },
