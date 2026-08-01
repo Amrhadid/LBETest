@@ -22,7 +22,7 @@ const charcoal = "#1D1D1F";
 
 const levels = [
   ["LBE 1", "Foundation"], ["LBE 2", "Operational"],
-  ["LBE 3", "Professional"], ["LBE 4", "Advanced"],
+  ["LBE 3", "Qualified"], ["LBE 4", "Professional"],
   ["LBE 5", "Executive"],
 ];
 const topics = ["Sales", "Marketing", "HR", "Meetings", "Emails", "Customer Service", "Finance", "Management", "Presentations"];
@@ -51,7 +51,7 @@ export default function KnowTheTestPage() {
             <div className="kte-float absolute left-[8%] top-[18%] z-20 rounded-2xl bg-card p-4 shadow-2xl"><ShieldCheck size={30} color={gold}/></div>
             <div className="kte-float kte-delay absolute right-[7%] top-[12%] z-20 rounded-2xl bg-card p-4 shadow-2xl"><Globe2 size={30} color={charcoal}/></div>
             <div className="kte-float absolute bottom-[13%] right-[10%] z-20 rounded-2xl bg-charcoal p-4 text-white shadow-2xl"><BriefcaseBusiness size={30}/></div>
-            <div className="absolute inset-x-[7%] top-[23%] z-10 rotate-[-2deg] rounded-[2rem] border border-gold/20 bg-card/70 p-4 shadow-[0_40px_90px_-30px_rgb(29_29_31_/_.35)] backdrop-blur-xl"><div className="overflow-hidden rounded-2xl bg-charcoal p-5 text-white"><div className="mb-7 flex items-center justify-between"><b>LBE Dashboard</b><span className="size-2 rounded-full bg-gold"/></div><p className="text-xs text-white/55">YOUR CURRENT LEVEL</p><p className="mt-2 text-4xl font-semibold">LBE 3</p><p className="text-gold-soft">Professional</p><div className="mt-8 grid grid-cols-3 gap-2">{["Reading", "Speaking", "Writing"].map((x,i)=><div key={x} className="rounded-xl bg-white/10 p-3 text-[10px]"><div className="mb-2 h-1 rounded bg-gold" style={{width:`${72+i*8}%`}}/>{x}</div>)}</div></div></div>
+            <div className="absolute inset-x-[7%] top-[23%] z-10 rotate-[-2deg] rounded-[2rem] border border-gold/20 bg-card/70 p-4 shadow-[0_40px_90px_-30px_rgb(29_29_31_/_.35)] backdrop-blur-xl"><div className="overflow-hidden rounded-2xl bg-charcoal p-5 text-white"><div className="mb-7 flex items-center justify-between"><b>LBE Dashboard</b><span className="size-2 rounded-full bg-gold"/></div><p className="text-xs text-white/55">YOUR CURRENT LEVEL</p><p className="mt-2 text-4xl font-semibold">LBE 3</p><p className="text-gold-soft">Qualified</p><div className="mt-8 grid grid-cols-3 gap-2">{["Reading", "Speaking", "Writing"].map((x,i)=><div key={x} className="rounded-xl bg-white/10 p-3 text-[10px]"><div className="mb-2 h-1 rounded bg-gold" style={{width:`${72+i*8}%`}}/>{x}</div>)}</div></div></div>
             <div className="kte-float kte-delay absolute bottom-[5%] left-[2%] z-20 w-[48%] rotate-[-7deg] rounded-xl border border-gold/40 bg-ivory p-4 shadow-2xl"><Award className="mx-auto" color={gold}/><p className="mt-2 text-center text-[10px] tracking-[.2em] text-gold">CERTIFICATE</p><p className="text-center font-serif text-lg">Business English</p></div>
           </div>
         </div>

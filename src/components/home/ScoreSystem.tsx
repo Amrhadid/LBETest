@@ -24,14 +24,14 @@ const levels: Level[] = [
   },
   {
     code: "LBE3",
-    name: "Professional",
+    name: "Qualified",
     blurb:
       "Can participate effectively in meetings, write professional emails and contribute confidently to workplace discussions.",
     qualified: true,
   },
   {
     code: "LBE4",
-    name: "Advanced",
+    name: "Professional",
     blurb:
       "Can communicate fluently and confidently in complex business situations that require precision, adaptability and professional judgment.",
   },

@@ -9,8 +9,8 @@ import { updateExamConfig } from "@/app/admin/actions";
 
 const LEVELS = [1, 2, 3, 4, 5];
 const LEVEL_NAMES: Record<number, string> = {
-  1: "Foundation", 2: "Operational", 3: "Professional",
-  4: "Advanced", 5: "Executive",
+  1: "Foundation", 2: "Operational", 3: "Qualified",
+  4: "Professional", 5: "Executive",
 };
 
 interface SectionCfg { seconds?: number; weight?: number }
