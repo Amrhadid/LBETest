@@ -320,6 +320,60 @@ export async function setCertificateStatus(
   return { message: status === "revoked" ? "Revoked." : "Reinstated." };
 }
 
+/**
+ * Issue certificates for every scored attempt that doesn't have one yet.
+ *
+ * Under the current rule every completed attempt certifies at LBE 1 or higher,
+ * so attempts scored before that rule (or whose certificate never generated) are
+ * missing a credential. This re-runs finalization for each — finalize now
+ * backfills a certificate on an already-scored attempt when none exists.
+ */
+export async function backfillCertificates(): Promise<
+  AdminActionState & { issued?: number }
+> {
+  const me = await requireAdmin();
+  const svc = createServiceRoleClient();
+
+  // Scored, real attempts…
+  const { data: attempts } = await svc
+    .from("attempts")
+    .select("id")
+    .eq("status", "scored")
+    .eq("is_preview", false)
+    .limit(2000);
+  // …that already have a certificate (to skip).
+  const { data: certed } = await svc
+    .from("certificates")
+    .select("attempt_id")
+    .limit(5000);
+  const hasCert = new Set((certed ?? []).map((c) => c.attempt_id));
+
+  const missing = (attempts ?? []).filter((a) => !hasCert.has(a.id));
+  if (missing.length === 0) {
+    return { message: "Every scored attempt already has a certificate.", issued: 0 };
+  }
+
+  const { finalizeAttempt } = await import("@/lib/certificates/finalize");
+  let issued = 0;
+  for (const a of missing) {
+    try {
+      const res = await finalizeAttempt(a.id);
+      if (res.certificateId) issued += 1;
+    } catch {
+      // Skip attempts that can't be finalized (e.g. unresolved grades); the
+      // others still get their certificates.
+    }
+  }
+
+  await writeAudit(me, {
+    action: "certificates.backfill",
+    targetType: "certificate",
+    detail: { candidates: missing.length, issued },
+  });
+  revalidatePath("/admin/certificates");
+  return { message: `Issued ${issued} certificate${issued === 1 ? "" : "s"}.`, issued };
+}
+
 // ---------------------------------------------------------------------------
 // Exam credibility / trust
 // ---------------------------------------------------------------------------
