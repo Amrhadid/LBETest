@@ -71,6 +71,7 @@ function makeCandidateCode(): string {
 
 export async function finalizeAttempt(
   attemptId: string,
+  opts: { skipPdf?: boolean } = {},
 ): Promise<FinalizeResult> {
   const svc = createServiceRoleClient();
 
@@ -294,6 +295,14 @@ export async function finalizeAttempt(
   if (!certId) {
     // Couldn't reserve a code; the result record still stands.
     return { finalized: true, level, score, certificateId: null };
+  }
+
+  // Generating the PDF (embedding the ~1.5 MB template) is the heavy step. The
+  // bulk backfill skips it so it can create many certificate rows cheaply in one
+  // request without hitting the Worker's CPU limit; the PDF is then produced
+  // per-certificate via the "Regenerate PDF" action.
+  if (opts.skipPdf) {
+    return { finalized: true, level, score, certificateId: certId };
   }
 
   // Generate the PDF and store it privately; persist its object path.
