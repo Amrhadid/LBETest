@@ -52,7 +52,7 @@ const POS = {
   photo: { l: 0.774, t: 0.263, r: 0.909, b: 0.401 },
   score: { rightX: 0.333, line: 0.577, size: 46 },
   levelNum: { leftX: 0.792, baseline: 0.558, size: 58 },
-  levelName: { cx: 0.723, line: 0.5802, size: 15, maxW: 0.30 },
+  levelName: { line: 0.5802, size: 15, maxW: 0.30 },
   desc1: { cx: 0.5015, line: 0.6277, size: 11.5 },
   desc2: { cx: 0.5015, line: 0.6502, size: 11.5 },
   certId: { cx: 0.171, line: 0.8135, size: 10 },
@@ -61,6 +61,15 @@ const POS = {
   validUntil: { cx: 0.812, line: 0.8135, size: 10 },
   qr: { l: 0.747, t: 0.834, size: 0.126 },
 } as const;
+
+/**
+ * Left edge (page-width fraction) of the baked "LBE" wordmark next to the
+ * dynamic level number, measured by scanning the template art. "QUALIFIED"
+ * (or any level name) is centred between this and the dynamic level number's
+ * drawn right edge — NOT a hardcoded fraction — so it stays centred under
+ * "LBE <n>" regardless of the level digit's width.
+ */
+const LBE_WORDMARK_LEFT_X = 0.5498;
 
 /** ~3pt gap so the baseline sits above the underline (not through the text). */
 const GAP = 3 / H;
@@ -158,15 +167,23 @@ export async function generateCertificatePdf(
   const name = input.candidateName.trim().toUpperCase() || "CANDIDATE";
   centerAt(page, serifBold, name, POS.name.cx, POS.name.line - GAP, fit(serifBold, name, POS.name.size, POS.name.maxW, 14), INK);
 
-  // Candidate photo (optional) — fills the framed box if present.
-  if (input.candidatePhoto && input.candidatePhoto.length > 0) {
-    const img = await embedPhoto(pdf, input.candidatePhoto);
-    if (img) {
-      const bx = POS.photo.l * W, by = H * (1 - POS.photo.b);
-      const bw = (POS.photo.r - POS.photo.l) * W, bh = (POS.photo.b - POS.photo.t) * H;
-      const inset = 2;
-      page.drawImage(img, { x: bx + inset, y: by + inset, width: bw - 2 * inset, height: bh - 2 * inset });
-    }
+  // Candidate photo (optional) — fills the framed box if present, otherwise a
+  // faint "PHOTO" label so the empty box doesn't read as an unfinished layout.
+  const bx = POS.photo.l * W, by = H * (1 - POS.photo.b);
+  const bw = (POS.photo.r - POS.photo.l) * W, bh = (POS.photo.b - POS.photo.t) * H;
+  const photoImg = input.candidatePhoto && input.candidatePhoto.length > 0
+    ? await embedPhoto(pdf, input.candidatePhoto)
+    : null;
+  if (photoImg) {
+    const inset = 2;
+    page.drawImage(photoImg, { x: bx + inset, y: by + inset, width: bw - 2 * inset, height: bh - 2 * inset });
+  } else {
+    const label = "PHOTO";
+    const size = 9;
+    const w = sansBold.widthOfTextAtSize(label, size);
+    page.drawText(label, {
+      x: bx + (bw - w) / 2, y: by + bh / 2 - size / 2, size, font: sansBold, color: rgb(0.75, 0.75, 0.75),
+    });
   }
 
   // Score (right-aligned just before the baked "/100").
@@ -177,11 +194,14 @@ export async function generateCertificatePdf(
   });
 
   // Level number after the baked "LBE" (gold), and level name on the line below.
-  page.drawText(String(input.level), {
+  const levelDigits = String(input.level);
+  page.drawText(levelDigits, {
     x: POS.levelNum.leftX * W, y: H * (1 - POS.levelNum.baseline), size: POS.levelNum.size, font: serifBold, color: GOLD,
   });
+  const levelNumRightX = POS.levelNum.leftX + serifBold.widthOfTextAtSize(levelDigits, POS.levelNum.size) / W;
+  const levelNameCx = (LBE_WORDMARK_LEFT_X + levelNumRightX) / 2;
   const lname = input.levelName.toUpperCase();
-  centerAt(page, serifBold, lname, POS.levelName.cx, POS.levelName.line - GAP, fit(serifBold, lname, POS.levelName.size, POS.levelName.maxW, 9), INK);
+  centerAt(page, serifBold, lname, levelNameCx, POS.levelName.line - GAP, fit(serifBold, lname, POS.levelName.size, POS.levelName.maxW, 9), INK);
 
   // Level description (up to two centred lines).
   const [d1, d2] = wrapTwo(sans, input.levelDescription.trim(), POS.desc1.size, 0.52);

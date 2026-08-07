@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Upload, Loader2, CheckCircle2, Clock, AlertCircle, Lock } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { PhotoCropModal } from "@/app/dashboard/PhotoCropModal";
 
 type Status = "none" | "pending" | "approved" | "rejected";
 
@@ -31,23 +32,34 @@ export function CertificatePhotoCard({
   const router = useRouter();
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [cropSrc, setCropSrc] = React.useState<string | null>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   const locked = status === "approved";
   const meta = status !== "none" ? STATUS_META[status] : null;
 
-  const onFile = async (file: File) => {
+  const onFile = (file: File) => {
     setError(null);
+    setCropSrc(URL.createObjectURL(file));
+  };
+
+  const closeCrop = () => {
+    if (cropSrc) URL.revokeObjectURL(cropSrc);
+    setCropSrc(null);
+  };
+
+  // Called from inside PhotoCropModal's confirm step — throwing here lets the
+  // modal show its own inline error and stay open for another attempt.
+  const uploadCropped = async (blob: Blob) => {
     setBusy(true);
     try {
       const fd = new FormData();
-      fd.append("photo", file);
+      fd.append("photo", new File([blob], "certificate-photo.jpg", { type: "image/jpeg" }));
       const res = await fetch("/dashboard/certificate-photo", { method: "POST", body: fd });
       const json = (await res.json()) as { error?: string };
-      if (!res.ok) setError(json.error ?? "Upload failed.");
-      else router.refresh();
-    } catch {
-      setError("Upload failed. Please try again.");
+      if (!res.ok) throw new Error(json.error ?? "Upload failed.");
+      closeCrop();
+      router.refresh();
     } finally {
       setBusy(false);
       if (inputRef.current) inputRef.current.value = "";
@@ -122,6 +134,10 @@ export function CertificatePhotoCard({
           )}
         </div>
       </div>
+
+      {cropSrc && (
+        <PhotoCropModal imageSrc={cropSrc} onCancel={closeCrop} onConfirm={uploadCropped} />
+      )}
     </div>
   );
 }
