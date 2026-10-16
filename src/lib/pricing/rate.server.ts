@@ -5,7 +5,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 
-import { getServerSupabaseEnv } from "@/lib/supabase/env";
+import { DB_SCHEMA, getServerSupabaseEnv } from "@/lib/supabase/env";
 import { EXCHANGE_RATE_API } from "@/lib/pricing/exchange-rate";
 
 /** Read the most recent cached rate. Returns null if none/unavailable. */
@@ -14,7 +14,10 @@ export async function getLatestUsdRate(): Promise<number | null> {
   const key = serviceKey ?? anonKey; // public read policy allows anon
   if (!url || !key) return null;
   try {
-    const supa = createClient(url, key, { auth: { persistSession: false } });
+    const supa = createClient(url, key, {
+      db: { schema: DB_SCHEMA },
+      auth: { persistSession: false },
+    });
     const { data } = await supa
       .from("exchange_rates")
       .select("rate")
@@ -64,7 +67,10 @@ export async function refreshExchangeRate(
       return { ok: false, error: "no valid USD rate in response" };
     }
 
-    const supa = createClient(url, key, { auth: { persistSession: false } });
+    const supa = createClient(url, key, {
+      db: { schema: DB_SCHEMA },
+      auth: { persistSession: false },
+    });
     const { error } = await supa
       .from("exchange_rates")
       .insert({ base_currency: "EGP", quote_currency: "USD", rate });

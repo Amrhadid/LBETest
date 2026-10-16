@@ -15,9 +15,10 @@
  * scheduled handler (no request context).
  */
 
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { LbeClient } from "@/lib/supabase/schema";
+import { createClient } from "@supabase/supabase-js";
 
-import { getServerSupabaseEnv } from "@/lib/supabase/env";
+import { DB_SCHEMA, getServerSupabaseEnv } from "@/lib/supabase/env";
 import { FLAG_THRESHOLD } from "@/lib/exam/trust";
 import {
   ID_VERIFICATION_BUCKET,
@@ -34,7 +35,7 @@ export const RETENTION_DAYS = 7;
 
 /** Recursively delete every object under a bucket "folder" prefix. */
 async function deletePrefix(
-  svc: SupabaseClient,
+  svc: LbeClient,
   bucket: string,
   prefix: string,
 ): Promise<void> {
@@ -62,7 +63,10 @@ export async function purgeExpiredRecordings(
   const cutoff = new Date(now - RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
   try {
-    const svc = createClient(url, key, { auth: { persistSession: false } });
+    const svc = createClient(url, key, {
+      db: { schema: DB_SCHEMA },
+      auth: { persistSession: false },
+    });
 
     // Candidates for purge: old, non-preview, still carrying media pointers.
     const { data: rows } = await svc

@@ -6,11 +6,11 @@
  * the anchor forward to buy more time.
  */
 
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { LbeClient } from "@/lib/supabase/schema";
 
 /** Map of lbe_level → section-start epoch ms (earliest recorded). */
 export async function getSectionAnchors(
-  svc: SupabaseClient,
+  svc: LbeClient,
   attemptId: string,
 ): Promise<Map<number, number>> {
   const { data } = await svc
