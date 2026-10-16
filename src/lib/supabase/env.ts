@@ -34,3 +34,5 @@ export function getServerSupabaseEnv(): {
       cf.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY,
   };
 }
+
+export { DB_SCHEMA } from "@/lib/supabase/schema";

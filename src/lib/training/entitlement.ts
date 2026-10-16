@@ -4,11 +4,11 @@
  * separate study-material code. SERVER-safe (takes a Supabase client).
  */
 
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { LbeClient } from "@/lib/supabase/schema";
 
 /** True if this user has at least one redeemed ("used") access code. */
 export async function hasTrainingAccess(
-  supabase: SupabaseClient,
+  supabase: LbeClient,
   userId: string,
 ): Promise<boolean> {
   const { count } = await supabase

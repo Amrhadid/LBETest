@@ -25,7 +25,7 @@ export type AccessCodeStatus = "unused" | "used" | "revoked";
 type Json = string | number | boolean | null | { [key: string]: Json } | Json[];
 
 export interface Database {
-  public: {
+  lbe: {
     Tables: {
       profiles: {
         Row: {
@@ -64,7 +64,7 @@ export interface Database {
           onboarded_at?: string | null;
           created_at?: string;
         };
-        Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;
+        Update: Partial<Database["lbe"]["Tables"]["profiles"]["Insert"]>;
         Relationships: [];
       };
       organizations: {
@@ -86,7 +86,7 @@ export interface Database {
           seats_used?: number;
           created_at?: string;
         };
-        Update: Partial<Database["public"]["Tables"]["organizations"]["Insert"]>;
+        Update: Partial<Database["lbe"]["Tables"]["organizations"]["Insert"]>;
         Relationships: [];
       };
       memberships: {
@@ -106,7 +106,7 @@ export interface Database {
           status?: string | null;
           created_at?: string;
         };
-        Update: Partial<Database["public"]["Tables"]["memberships"]["Insert"]>;
+        Update: Partial<Database["lbe"]["Tables"]["memberships"]["Insert"]>;
         Relationships: [];
       };
       exams: {
@@ -128,7 +128,7 @@ export interface Database {
           config?: Json | null;
           created_at?: string;
         };
-        Update: Partial<Database["public"]["Tables"]["exams"]["Insert"]>;
+        Update: Partial<Database["lbe"]["Tables"]["exams"]["Insert"]>;
         Relationships: [];
       };
       items: {
@@ -162,7 +162,7 @@ export interface Database {
           exposure_count?: number;
           created_at?: string;
         };
-        Update: Partial<Database["public"]["Tables"]["items"]["Insert"]>;
+        Update: Partial<Database["lbe"]["Tables"]["items"]["Insert"]>;
         Relationships: [];
       };
       forms: {
@@ -180,7 +180,7 @@ export interface Database {
           item_ids?: string[] | null;
           created_at?: string;
         };
-        Update: Partial<Database["public"]["Tables"]["forms"]["Insert"]>;
+        Update: Partial<Database["lbe"]["Tables"]["forms"]["Insert"]>;
         Relationships: [];
       };
       attempts: {
@@ -260,7 +260,7 @@ export interface Database {
           reviewed_at?: string | null;
           created_at?: string;
         };
-        Update: Partial<Database["public"]["Tables"]["attempts"]["Insert"]>;
+        Update: Partial<Database["lbe"]["Tables"]["attempts"]["Insert"]>;
         Relationships: [];
       };
       audit_log: {
@@ -284,7 +284,7 @@ export interface Database {
           detail?: Json | null;
           created_at?: string;
         };
-        Update: Partial<Database["public"]["Tables"]["audit_log"]["Insert"]>;
+        Update: Partial<Database["lbe"]["Tables"]["audit_log"]["Insert"]>;
         Relationships: [];
       };
       responses: {
@@ -326,7 +326,7 @@ export interface Database {
           approved_at?: string | null;
           created_at?: string;
         };
-        Update: Partial<Database["public"]["Tables"]["responses"]["Insert"]>;
+        Update: Partial<Database["lbe"]["Tables"]["responses"]["Insert"]>;
         Relationships: [];
       };
       attempt_events: {
@@ -344,7 +344,7 @@ export interface Database {
           payload?: Json | null;
           at?: string;
         };
-        Update: Partial<Database["public"]["Tables"]["attempt_events"]["Insert"]>;
+        Update: Partial<Database["lbe"]["Tables"]["attempt_events"]["Insert"]>;
         Relationships: [];
       };
       certificates: {
@@ -374,7 +374,7 @@ export interface Database {
           issue_hash?: string | null;
           pdf_url?: string | null;
         };
-        Update: Partial<Database["public"]["Tables"]["certificates"]["Insert"]>;
+        Update: Partial<Database["lbe"]["Tables"]["certificates"]["Insert"]>;
         Relationships: [];
       };
       access_codes: {
@@ -398,7 +398,7 @@ export interface Database {
           redeemed_at?: string | null;
           created_at?: string;
         };
-        Update: Partial<Database["public"]["Tables"]["access_codes"]["Insert"]>;
+        Update: Partial<Database["lbe"]["Tables"]["access_codes"]["Insert"]>;
         Relationships: [];
       };
       section_scores: {
@@ -416,7 +416,7 @@ export interface Database {
           auto_total?: number;
           updated_at?: string;
         };
-        Update: Partial<Database["public"]["Tables"]["section_scores"]["Insert"]>;
+        Update: Partial<Database["lbe"]["Tables"]["section_scores"]["Insert"]>;
         Relationships: [];
       };
       review_queue: {
@@ -446,7 +446,7 @@ export interface Database {
           resolved_by?: string | null;
           resolved_at?: string | null;
         };
-        Update: Partial<Database["public"]["Tables"]["review_queue"]["Insert"]>;
+        Update: Partial<Database["lbe"]["Tables"]["review_queue"]["Insert"]>;
         Relationships: [];
       };
       course_lessons: {
@@ -472,7 +472,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
-        Update: Partial<Database["public"]["Tables"]["course_lessons"]["Insert"]>;
+        Update: Partial<Database["lbe"]["Tables"]["course_lessons"]["Insert"]>;
         Relationships: [];
       };
       intro_submissions: {
@@ -518,7 +518,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
-        Update: Partial<Database["public"]["Tables"]["intro_submissions"]["Insert"]>;
+        Update: Partial<Database["lbe"]["Tables"]["intro_submissions"]["Insert"]>;
         Relationships: [];
       };
     };

@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { LbeClient } from "@/lib/supabase/schema";
 
 /** Private Storage bucket for spoken-response recordings (types 3 & 6). */
 export const RESPONSE_AUDIO_BUCKET = "responses-audio";
@@ -25,7 +25,7 @@ export function recordingPrefix(
 
 /** Upload one ID-verification image (kind = "id" or "selfie"); returns path. */
 export async function uploadIdImage(params: {
-  supabase: SupabaseClient;
+  supabase: LbeClient;
   blob: Blob;
   userId: string;
   attemptId: string;
@@ -47,7 +47,7 @@ export async function uploadIdImage(params: {
  * order. Returns the stored path.
  */
 export async function uploadRecordingChunk(params: {
-  supabase: SupabaseClient;
+  supabase: LbeClient;
   blob: Blob;
   userId: string;
   attemptId: string;
@@ -70,7 +70,7 @@ export async function uploadRecordingChunk(params: {
  * segment MUST be the owner's user id (bucket RLS matches auth.uid()).
  */
 export async function uploadRoomScan(params: {
-  supabase: SupabaseClient;
+  supabase: LbeClient;
   blob: Blob;
   userId: string;
   attemptId: string;
@@ -116,7 +116,7 @@ export function responseAudioPath(params: {
  * Requires an authenticated Supabase client whose user id matches `userId`.
  */
 export async function uploadResponseAudio(params: {
-  supabase: SupabaseClient;
+  supabase: LbeClient;
   blob: Blob;
   userId: string;
   attemptId: string;

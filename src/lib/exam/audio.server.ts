@@ -7,7 +7,7 @@
  * signed URL from that path via the service role.
  */
 
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { LbeClient } from "@/lib/supabase/schema";
 
 export const EXAM_AUDIO_BUCKET = "exam-audio";
 /** Signed-URL lifetime: 1 hour — covers a section's time limit plus buffer. */
@@ -20,7 +20,7 @@ export const EXAM_AUDIO_SIGNED_TTL = 60 * 60;
  * Returns null when there's nothing to play or signing fails.
  */
 export async function signExamAudio(
-  svc: SupabaseClient,
+  svc: LbeClient,
   storedValue: string | null | undefined,
 ): Promise<string | null> {
   if (!storedValue) return null;

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { LbeClient } from "@/lib/supabase/schema";
 
 import {
   uploadRecordingChunk,
@@ -58,7 +58,7 @@ export function useAttemptCapture({
   attemptId,
   enabled,
 }: {
-  supabase: SupabaseClient;
+  supabase: LbeClient;
   userId: string;
   attemptId: string;
   enabled: boolean;

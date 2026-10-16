@@ -4,7 +4,7 @@ import * as React from "react";
 import { Camera, Loader2, VideoOff } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { LbeClient } from "@/lib/supabase/schema";
 import { uploadRoomScan } from "@/lib/exam/storage";
 import { cameraErrorMessage } from "@/lib/exam/media";
 import { saveRoomScan } from "@/app/start/actions";
@@ -24,7 +24,7 @@ export function RoomScanGate({
   onDone,
   ensureCamera,
 }: {
-  supabase: SupabaseClient;
+  supabase: LbeClient;
   userId: string;
   attemptId: string;
   onDone: () => void;

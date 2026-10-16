@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
 import type { Database } from "@/lib/supabase/types";
-import { getServerSupabaseEnv } from "@/lib/supabase/env";
+import { DB_SCHEMA, getServerSupabaseEnv } from "@/lib/supabase/env";
 
 /**
  * Refreshes the Supabase auth session on each request and rewrites the auth
@@ -22,6 +22,7 @@ export async function updateSession(request: NextRequest) {
   }
 
   const supabase = createServerClient<Database>(url, anonKey, {
+    db: { schema: DB_SCHEMA },
     cookies: {
       getAll() {
         return request.cookies.getAll();

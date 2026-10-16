@@ -4,7 +4,7 @@ import * as React from "react";
 import { IdCard, Camera, Loader2, Check } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { LbeClient } from "@/lib/supabase/schema";
 import { uploadIdImage } from "@/lib/exam/storage";
 import { cameraErrorMessage } from "@/lib/exam/media";
 import { saveIdVerification } from "@/app/start/actions";
@@ -22,7 +22,7 @@ export function IdVerificationGate({
   onDone,
   ensureCamera,
 }: {
-  supabase: SupabaseClient;
+  supabase: LbeClient;
   userId: string;
   attemptId: string;
   onDone: () => void;

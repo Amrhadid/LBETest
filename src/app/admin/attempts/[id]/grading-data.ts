@@ -7,7 +7,7 @@
  * Shaped into {@link PendingGrade}s the GradingReview client component renders.
  */
 
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { LbeClient } from "@/lib/supabase/schema";
 
 import { RESPONSE_AUDIO_BUCKET } from "@/lib/exam/storage";
 import { answerText, isAiVoiceGraded, type Rubric } from "@/lib/exam/grading";
@@ -40,7 +40,7 @@ interface ResponseRow {
 }
 
 export async function loadAttemptGrades(
-  svc: SupabaseClient,
+  svc: LbeClient,
   attemptId: string,
 ): Promise<PendingGrade[]> {
   const { data: responses } = await svc

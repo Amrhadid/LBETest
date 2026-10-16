@@ -6,7 +6,7 @@
  * only non-preview attempts.
  */
 
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { LbeClient } from "@/lib/supabase/schema";
 
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { ACTIVE_EXAM_ID, parseExamConfig } from "@/lib/exam/config";
@@ -36,7 +36,7 @@ export interface DuplicateFinding {
 
 /** Near-identical open-ended answers vs OTHER candidates on the same item. */
 export async function findDuplicateAnswers(
-  svc: SupabaseClient,
+  svc: LbeClient,
   attemptId: string,
 ): Promise<DuplicateFinding[]> {
   const { data: mine } = await svc
@@ -77,7 +77,7 @@ export async function findDuplicateAnswers(
 
 /** Count of sections finished implausibly fast (#2). */
 async function countFastSections(
-  svc: SupabaseClient,
+  svc: LbeClient,
   attemptId: string,
   sectionSeconds: number,
 ): Promise<number> {
@@ -117,7 +117,7 @@ async function countFastSections(
 }
 
 async function fingerprintShared(
-  svc: SupabaseClient,
+  svc: LbeClient,
   attemptId: string,
   fingerprint: string | null,
   userId: string,

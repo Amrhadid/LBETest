@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
 import type { Database } from "@/lib/supabase/types";
-import { getServerSupabaseEnv } from "@/lib/supabase/env";
+import { DB_SCHEMA, getServerSupabaseEnv } from "@/lib/supabase/env";
 
 /**
  * Server Supabase client for Server Components, Route Handlers and Server
@@ -24,6 +24,7 @@ export async function createClient() {
   }
 
   return createServerClient<Database>(url, anonKey, {
+    db: { schema: DB_SCHEMA },
     cookies: {
       getAll() {
         return cookieStore.getAll();
@@ -58,6 +59,7 @@ export function createServiceRoleClient() {
   }
 
   return createServerClient<Database>(url, serviceKey, {
+    db: { schema: DB_SCHEMA },
     // No session persistence for the service-role client; it never uses cookies.
     cookies: {
       getAll() {

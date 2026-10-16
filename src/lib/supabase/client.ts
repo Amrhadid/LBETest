@@ -1,6 +1,7 @@
 import { createBrowserClient } from "@supabase/ssr";
 
 import type { Database } from "@/lib/supabase/types";
+import { DB_SCHEMA } from "@/lib/supabase/schema";
 
 /** Public Supabase config passed from the server (runtime) to the browser. */
 export type PublicSupabaseConfig = { url: string; anonKey: string };
@@ -26,5 +27,7 @@ export function createClient(config?: Partial<PublicSupabaseConfig>) {
     );
   }
 
-  return createBrowserClient<Database>(url, anonKey);
+  return createBrowserClient<Database>(url, anonKey, {
+    db: { schema: DB_SCHEMA },
+  });
 }
